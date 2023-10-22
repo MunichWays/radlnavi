@@ -56,7 +56,7 @@ async function loadMunichwaysJson() {
     console.log("Transforming munichways json");
     const munichwaysDataCopy = {
         ...munichwaysData,
-        features: munichwaysData.features.map((feature) => ({
+        features: munichwaysData.features.filter((feature) => feature.geometry.type === "LineString" || feature.geometry.type === "MultiLineString").map((feature) => ({
             geometry: feature.geometry,
             properties: {
                 color: translateClassBicycle(feature.properties["class:bicycle"]),
