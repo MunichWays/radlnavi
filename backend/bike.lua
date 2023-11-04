@@ -671,12 +671,12 @@ function process_way(profile, way, result)
   WayHandlers.run(profile, way, result, data, handlers)
 
   local color = way:get_value_by_key("class:bicycle")
-  local color_penalty = 0.65
+  local color_penalty = 0.7
   if color and color == "-2" then
-    color_penalty = 0.3
+    color_penalty = 0.4
   end
   if color and color == "-1" then
-    color_penalty = 0.5
+    color_penalty = 0.6
   end
   if color and color == "1" then
     color_penalty = 0.8
