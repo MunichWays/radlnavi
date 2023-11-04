@@ -672,17 +672,28 @@ function process_way(profile, way, result)
 
   local color = way:get_value_by_key("class:bicycle")
   local color_penalty = 0.65
-  if color and color == -2 then
+  if color and color == "-2" then
     color_penalty = 0.3
   end
-  if color and color == -1 then
+  if color and color == "-1" then
     color_penalty = 0.5
   end
-  if color and color == 1 then
+  if color and color == "1" then
     color_penalty = 0.8
   end
-  if color and color == 2 then
+  if color and color == "2" then
     color_penalty = 1
+  end
+
+  -- force routing via cycleway, if one exists
+  local cycleway_both = way:get_value_by_key("cycleway:both")
+  if cycleway_both == "separate" or data.bicycle == "use_sidepath" or data.bicycle == "no" then
+    result.forward_speed = 0
+    result.backward_speed = 0
+  elseif data.cycleway_left == "separate" then
+    result.forward_speed = 0
+  elseif data.cycleway_right == "separate" then
+    result.backward_speed = 0
   end
 
   if result.forward_speed > 0 then
