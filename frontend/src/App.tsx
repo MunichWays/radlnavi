@@ -190,21 +190,19 @@ const LIT_COLORS = new Map([
 ]);
 
 const endMarkerIcon = new LeafletIcon({
-  iconUrl: "marker-icon-red.png",
+  iconUrl: "marker-end.svg",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
-  iconRetinaUrl: "marker-icon-2x-red.png",
 });
 
 const startMarkerIcon = new LeafletIcon({
-  iconUrl: "marker-icon-green.png",
+  iconUrl: "marker-start.svg",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
-  iconRetinaUrl: "marker-icon-2x-green.png",
 });
 
 const userMarkerIcon = new LeafletIcon({
-  iconUrl: "navigation-icon.svg",
+  iconUrl: "marker-user.svg",
   iconSize: [48, 48],
   iconAnchor: [24, 24],
 });

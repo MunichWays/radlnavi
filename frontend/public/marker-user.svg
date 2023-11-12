@@ -4,7 +4,10 @@
     <g transform="matrix(0.81696,0,0,0.81696,3.89899,0.504493)">
         <circle cx="24.605" cy="28.76" r="14.992" style="fill:rgb(0,112,255);stroke:white;stroke-width:2.13px;"/>
     </g>
-    <g transform="matrix(1,0,0,0.967568,-5.86047,-2.22016)">
-        <path d="M29.86,2.295L41.86,13.767C33.777,10.457 25.778,10.476 17.86,13.767L29.86,2.295Z" style="fill:rgb(0,112,255);stroke:white;stroke-width:1.69px;"/>
+    <g transform="matrix(0.380558,0,0,0.380558,14.6365,13.0553)">
+        <circle cx="24.605" cy="28.76" r="14.992" style="fill:white;"/>
+    </g>
+    <g transform="matrix(1,0,0,0.964865,-5.86047,-1.53178)">
+        <path d="M29.86,2.295L41.86,13.767C40.237,13.065 35.049,11.055 29.86,11.061C24.677,11.067 19.492,13.089 17.86,13.767L29.86,2.295Z" style="fill:rgb(0,112,255);stroke:white;stroke-width:1.7px;"/>
     </g>
 </svg>
