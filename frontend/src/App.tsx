@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState, useEffect, useCallback, useRef, MutableRefObject } from "react";
 import "./App.css";
 import {
@@ -11,7 +12,13 @@ import {
 import { LatLngBounds, LeafletEvent, LeafletMouseEvent, Map as LMap, Icon as LeafletIcon } from "leaflet";
 import { throttle, debounce } from "lodash";
 import { TextField, IconButton, LinearProgress, Button, createTheme, ThemeProvider, Autocomplete, Tooltip, Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link, Typography, SwipeableDrawer, Fab } from "@mui/material";
-import { CenterFocusWeak, Download, LocationSearching, MenuOpen, SwapVert } from "@mui/icons-material";
+import { CenterFocusWeak, Download, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
+import lineSlice from "@turf/line-slice";
+import { point, lineString } from "@turf/helpers";
+import length from "@turf/length";
+import lineSliceAlong from "@turf/line-slice-along";
+import RotatedMarker from './RotatedMarker';
+import textInstructions from 'osrm-text-instructions';
 
 const togpx = require("togpx");
 
@@ -33,6 +40,18 @@ const RADLNAVI_THEME = createTheme({
     },
   },
 });
+
+type LineGeo = Array<{ lat: number, lng: number }>;
+
+interface NavigationStep {
+  distance: number;
+  maneuver: {
+    type: "turn" | "arrive" | "end of road" | "continue",
+    modifier: "left" | "slight left" | "straight" | "slight right" | "right",
+  };
+  geometry: LineGeo;
+  description: string;
+}
 
 interface NominatimItem {
   display_name: string;
@@ -184,6 +203,14 @@ const startMarkerIcon = new LeafletIcon({
   iconRetinaUrl: "marker-icon-2x-green.png",
 });
 
+const userMarkerIcon = new LeafletIcon({
+  iconUrl: "navigation-icon.svg",
+  iconSize: [48, 48],
+  iconAnchor: [24, 24],
+});
+
+
+
 function useGeoJsonLayerRefUpdate() {
   const ref: MutableRefObject<any> = useRef(null);
   const setRef = useCallback((node: any) => {
@@ -222,6 +249,7 @@ function App() {
   >>(null);
   const [illuminatedPaths, setIlluminatedPaths] = useState<null | Map<string, Array<Array<{ lat: number, lon: number }>>>>(null);
   const [surfacePaths, setSurfacePaths] = useState<null | Map<string, Array<Array<{ lat: number, lon: number }>>>>(null);
+  const [navigationPath, setNavigationPath] = useState<null | Array<{ lat: number, lng: number }> | null>(null);
   const [routeMetadata, setRouteMetadata] = useState<RouteMetadata | null>(
     null
   );
@@ -240,6 +268,13 @@ function App() {
   const [geoJsonLayerRef] = useGeoJsonLayerRefUpdate();
   const [showAbout, setShowAbout] = useState(false);
   const [showImpressum, setShowImpressum] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [geolocationWathId, setGeolocationWatchId] = useState<number | null>(null);
+  const [userPosition, setUserPosition] = useState<null | { lat: number, lng: number, speed: number | null, heading: number | null }>(null);
+  const [snappedUserPosition, setSnappedUserPosition] = useState<null | { lat: number, lng: number }>(null);
+  const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
+  const [nextNavigationStep, setNextNavigationStep] = useState<NavigationStep>(null);
+  const [lineToRoute, setLineToRoute] = useState<LineGeo | null>(null);
 
   useEffect(() => {
     if (map && showMunichways && !geoJsonData) {
@@ -265,6 +300,59 @@ function App() {
 
   useEffect(() => autocompleteStart(startValue), [startValue]);
   useEffect(() => autocompleteEnd(endValue), [endValue]);
+
+  useEffect(() => {
+    if (isNavigating && route && userPosition && routeMetadata) {
+      map?.setView({ lat: userPosition.lat, lng: userPosition.lng }, 20 - Math.min(5, (userPosition.speed || 0) / 2), { animate: true, duration: 1 });
+      const line = lineString(route.geometry.coordinates);
+      const navigationRoute = lineSlice(point([userPosition.lng, userPosition.lat]), point(route.geometry.coordinates[route.geometry.coordinates.length - 1]), line);
+      setNavigationPath(navigationRoute.geometry.coordinates.map((pos) => ({ lat: pos[1], lng: pos[0] })));
+      const distanceToTravel = length(navigationRoute, { units: "meters" });
+      const distanceTravelled = routeMetadata.distance - distanceToTravel;
+
+      // snap user position to route
+      const fromUserToRoute = lineString([[userPosition.lng, userPosition.lat], navigationRoute.geometry.coordinates[0]]);
+      const distanceToRoute = length(fromUserToRoute, { units: "meters" });
+      if (distanceToRoute < 15) {
+        setSnappedUserPosition({
+          lat: navigationRoute.geometry.coordinates[0][1],
+          lng: navigationRoute.geometry.coordinates[0][0],
+        });
+        setLineToRoute(null);
+      } else {
+        setSnappedUserPosition({
+          ...userPosition,
+        });
+        setLineToRoute(fromUserToRoute.geometry?.coordinates?.map(coord => ({ lat: coord[1], lng: coord[0] })));
+      }
+
+      let upcomingStep = null;
+      const routeSteps = route.legs[0].steps;
+      let travelled = distanceTravelled;
+      console.log("steps:", routeSteps);
+      for (const step of routeSteps) {
+        if (travelled < 0) {
+          upcomingStep = step;
+          break;
+        }
+        travelled -= step.distance;
+      }
+      if (upcomingStep != null) {
+        const nextStepDistanceFromStart = distanceTravelled + Math.abs(travelled);
+        setNextNavigationStep({
+          distance: Math.abs(travelled),
+          maneuver: upcomingStep?.maneuver,
+          description: textInstructions("v5").compile("de", upcomingStep),
+          geometry: lineSliceAlong(
+            line,
+            nextStepDistanceFromStart - 15,
+            nextStepDistanceFromStart + 15,
+            { units: "meters" },
+          ).geometry?.coordinates?.map(coord => ({ lat: coord[1], lng: coord[0] })),
+        });
+      }
+    }
+  }, [userPosition, route, isNavigating, routeMetadata])
 
   const dragStartPosition = throttle((e: LeafletEvent) => {
     const pos = e.target?.getLatLng();
@@ -387,30 +475,13 @@ function App() {
     return deg * (Math.PI / 180)
   }
 
-  const openRouteInGoogleMaps = useCallback(() => {
-    if (route != null) {
-      const part = route.distance / 10;
-      let lastPoint = route.geometry.coordinates[0];
-      const legs: [number, number][] = [];
-      route.geometry.coordinates.forEach((c: [number, number]) => {
-        const distanceToLastPoint = getDistanceFromLatLonInKm(lastPoint[1], lastPoint[0], c[1], c[0]);
-        if (distanceToLastPoint * 1000 > part) {
-          lastPoint = c;
-          legs.push(c);
-        }
-      });
-
-      const origin = encodeURIComponent(`${startPosition?.lat},${startPosition?.lon}`);
-      const destination = encodeURIComponent(`${endPosition?.lat},${endPosition?.lon}`);
-      const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=bicycling&waypoints=${legs?.map((c) => `${c[1]},${c[0]}`).join('|')}`;
-      window.open(gmapsUrl, '_blank');
-    }
-  }, [route]);
-
   const calculateRoute = useCallback(
     throttle((startPosition, endPosition) => {
       setIlluminatedPaths(null);
       setSurfacePaths(null);
+      setNavigationPath(null);
+      setNextNavigationStep(null);
+      setUserPosition(null);
       setSurfacesOnRoute(null);
       setIlluminatedOnRoute(null);
       if (startPosition && endPosition) {
@@ -420,6 +491,7 @@ function App() {
         )
           .then((response) => response.json())
           .then((results) => {
+            console.log(results);
             setRoute(results.routes[0]);
             setRouteMetadata({
               distance: results.routes[0].distance as number,
@@ -463,6 +535,43 @@ function App() {
   const toggleMenu = useCallback(() => {
     setMenuMinimized(!menuMinimized);
   }, [menuMinimized]);
+
+  const startNavigation = useCallback(() => {
+    setMenuMinimized(true);
+    setIsNavigating(true);
+  }, [])
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      if (isNavigating) {
+        if (geolocationWathId == null) {
+          map?.setView({ lat: route.geometry.coordinates[0][1], lng: route.geometry.coordinates[0][0] }, 20, { animate: true });
+          const watchId = navigator.geolocation.watchPosition((position) => {
+            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: position.coords.heading });
+          }, (error) => {
+            console.error(error);
+          }, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+          });
+          setGeolocationWatchId(watchId);
+        }
+      } else {
+        if (geolocationWathId) {
+          navigator.geolocation.clearWatch(geolocationWathId);
+          setGeolocationWatchId(null);
+        }
+      }
+    }
+
+    if ("wakeLock" in navigator) {
+      if (isNavigating) {
+        navigator.wakeLock.request().then(value => setWakeLock(value))
+      } else {
+        wakeLock?.release().then(() => setWakeLock(null));
+      }
+    }
+  }, [isNavigating, geolocationWathId, route])
 
   const routeFromHere = useCallback(
     (position: { lat: number; lng: number }) => {
@@ -613,6 +722,11 @@ function App() {
       );
   };
 
+  const goToMenu = useCallback(() => {
+    setMenuMinimized(false);
+    setIsNavigating(false);
+  }, []);
+
   document.onresize = () => {
     if (map != null) {
       map.invalidateSize();
@@ -650,7 +764,7 @@ function App() {
         ) : null}
 
         {menuMinimized ?
-          <Fab color="primary" onClick={() => setMenuMinimized(!menuMinimized)} style={{ position: "absolute", top: 15, left: 15, zIndex: 1 }}>
+          <Fab color="primary" onClick={() => goToMenu()} style={{ position: "absolute", top: 15, left: 15, zIndex: 1 }}>
             <MenuOpen sx={{ transform: "scaleX(-1);" }} />
           </Fab> : null}
 
@@ -748,9 +862,6 @@ function App() {
               </Tooltip>
             </div>
             {routeMetaElement}
-            {startPosition != null && endPosition != null && (surfacesElement == null || illuminatedElement == null || routeMetaElement == null) ? <LinearProgress sx={{ height: 10, borderRadius: 4, margin: "10px" }} /> : null}
-            {surfacesElement}
-            {illuminatedElement}
             {route && map ? <Button
               variant="contained"
               color="primary"
@@ -764,7 +875,22 @@ function App() {
               }}>Route anzeigen</Button> : null}
             {route != null ?
               <Button
-                style={{ margin: "10px" }}
+                style={{ margin: "10px 10px 0 10px" }}
+                variant="contained"
+                color="primary"
+                onClick={() => startNavigation()}
+                disabled={route == null}
+                startIcon={<PlayArrow />}
+              >
+                Navigation starten
+              </Button>
+              : null}
+            {startPosition != null && endPosition != null && (surfacesElement == null || illuminatedElement == null || routeMetaElement == null) ? <LinearProgress sx={{ height: 10, borderRadius: 4, margin: "10px" }} /> : null}
+            {surfacesElement}
+            {illuminatedElement}
+            {route != null ?
+              <Button
+                style={{ margin: "0 10px" }}
                 variant="contained"
                 color="primary"
                 onClick={() => exportGpx()}
@@ -783,6 +909,34 @@ function App() {
             </div>
           </div>
         </SwipeableDrawer>
+
+        {isNavigating && nextNavigationStep && nextNavigationStep ? <div style={{
+          position: "absolute",
+          left: 10,
+          right: 10,
+          bottom: 20,
+          zIndex: 1000,
+          background: "#00BCF2",
+          padding: 10,
+          borderRadius: 10,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "stretch",
+        }}>
+
+          {nextNavigationStep.maneuver.type != "arrive" && nextNavigationStep.maneuver?.modifier == null ? <div style={{ flexGrow: 1 }}></div> :
+            <div style={{
+              backgroundImage: `url(./${nextNavigationStep.maneuver?.type == "arrive" ? "arrive" : "maneuver_" + nextNavigationStep.maneuver.modifier.replaceAll(" ", "_")}.svg)`,
+              backgroundRepeat: "no-repeat",
+              flexGrow: 1
+            }}>
+            </div>}
+
+          <div style={{ textAlign: "left", flexGrow: 1 }}>
+            <span style={{ fontSize: "2rem" }}>{Math.round(nextNavigationStep.distance / 10) * 10}m</span><br />
+            <i>{nextNavigationStep.description}</i>
+          </div>
+        </div> : null}
 
         <LeafletMap
           className="map"
@@ -827,11 +981,38 @@ function App() {
               <Popup>{endPosition.display_name}</Popup>
             </Marker>
           ) : null}
+          {userPosition != null && route != null ? (
+            <RotatedMarker
+              icon={userMarkerIcon}
+              draggable={false}
+              position={[
+                snappedUserPosition?.lat || userPosition.lat,
+                snappedUserPosition?.lng || userPosition.lng,
+              ]}
+              rotationAngle={userPosition.heading || 0}
+              rotationOrigin={"center center"}
+            ></RotatedMarker>
+          ) : null}
           {route != null && startPosition != null && endPosition != null
             ? drawRoute(route)
             : null}
           {illuminatedPaths != null && startPosition != null && endPosition != null ? drawIlluminated() : null}
           {surfacePaths != null && startPosition != null && endPosition != null ? drawSurfaces() : null}
+          {navigationPath == null || route == null ? null :
+            <Polyline color="#00BCF2" weight={6} positions={
+              navigationPath
+            }></Polyline>
+          }
+          {navigationPath == null || route == null || nextNavigationStep?.geometry == null ? null :
+            <Polyline color="#008CB4" weight={8} positions={
+              nextNavigationStep.geometry
+            }></Polyline>
+          }
+          {navigationPath == null || route == null || lineToRoute == null ? null :
+            <Polyline color="red" dashArray="7 7" weight={4} positions={
+              lineToRoute
+            }></Polyline>
+          }
           {geoJsonData != null && showMunichways ? <GeoJSON ref={geoJsonLayerRef} data={geoJsonData as any} onEachFeature={(feature, layer: any) => {
             var layerType = layer.feature.geometry.type;
             if (layerType == 'LineString') {
