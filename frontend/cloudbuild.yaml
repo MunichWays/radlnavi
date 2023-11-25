@@ -1,0 +1,17 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/radlnavi/frontend:$COMMIT_SHA', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/radlnavi/frontend:$COMMIT_SHA']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+    - 'run'
+    - 'deploy'
+    - 'frontend'
+    - '--image'
+    - 'gcr.io/radlnavi/frontend:$COMMIT_SHA'
+    - '--region'
+    - 'europe-north1'
+  images:
+  - 'gcr.io/radlnavi/frontend:$COMMIT_SHA'
