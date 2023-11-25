@@ -926,7 +926,9 @@ function App() {
             <div style={{
               backgroundImage: `url(./${nextNavigationStep.maneuver?.type == "arrive" ? "arrive" : "maneuver_" + nextNavigationStep.maneuver.modifier.replaceAll(" ", "_")}.svg)`,
               backgroundRepeat: "no-repeat",
-              flexGrow: 1
+              flexGrow: 1,
+              minWidth: 70,
+              backgroundPositionY: "center",
             }}>
             </div>}
 
@@ -1021,6 +1023,18 @@ function App() {
           }} /> : null}
         </LeafletMap>
       </div>
+
+      {navigationPath == null || route == null || lineToRoute == null ? null :
+        <Button
+          variant="contained"
+          color="warning"
+          style={{
+            position: "fixed",
+            top: 20,
+            left: "50%",
+            transform: "translateX(-50%)"
+          }} onClick={() => routeFromHere(lineToRoute[0])}>Route neu berechnen</Button>
+      }
 
       <Dialog open={showAbout}>
         <DialogTitle>Über RadlNavi</DialogTitle>
