@@ -1,15 +1,11 @@
 #!/bin/bash
 
 echo "building backend service ..."
-cd backend
-./build.sh
-cd -
+docker build --network=host -f ./backend/Dockerfile -t radlnavi-backend ./backend
 echo "building backend service done."
 
 echo "building frontend service ..."
-cd frontend
-./build.sh "http://localhost:8080"
-cd -
+docker build --network=host --build-arg BACKEND_URL="http://localhost:8080" -f ./frontend/Dockerfile -t radlnavi-frontend ./frontend
 echo "building frontend service done."
 
 docker stop radlnavi-frontend radlnavi-backend

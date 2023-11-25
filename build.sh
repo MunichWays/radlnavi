@@ -1,15 +1,9 @@
 #!/bin/bash
 
 echo "building backend service ..."
-cd backend
-./build.sh
-cd -
-docker tag radlnavi-backend gcr.io/radlnavi/backend
+docker build --network=host -f ./backend/Dockerfile ./backend -t gcr.io/radlnavi/backend
 echo "building backend service done."
 
 echo "building frontend service ..."
-cd frontend
-./build.sh
-cd -
-docker tag radlnavi-frontend gcr.io/radlnavi/frontend
+docker build --network=host -f ./frontend/Dockerfile ./frontend -t gcr.io/radlnavi/frontend
 echo "building frontend service done."

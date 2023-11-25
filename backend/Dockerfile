@@ -1,12 +1,16 @@
-FROM osrm/osrm-backend as builder
+FROM alpine:latest AS map
 
-COPY ./geo/oberbayern-latest.osm.pbf /data/map.osm.pbf
+RUN wget https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf -O /opt/map.osm.pbf
+
+FROM osrm/osrm-backend:v5.25.0 AS builder
+
+COPY --from=map /opt/map.osm.pbf /data/map.osm.pbf
 COPY bike.lua /opt/bike.lua
 RUN osrm-extract -p /opt/bike.lua /data/map.osm.pbf
 RUN osrm-partition /data/map.osm.pbf
 RUN osrm-customize /data/map.osm.pbf
 
-FROM osrm/osrm-backend
+FROM osrm/osrm-backend:v5.25.0
 
 COPY --from=builder /data /data
 
