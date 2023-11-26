@@ -1,6 +1,7 @@
 FROM node:18.16-buster AS builder
 
 ARG BACKEND_URL="https://routing.floschnell.de"
+ARG VERSION="v1"
 
 COPY public public
 COPY src src
@@ -13,7 +14,7 @@ RUN npm install --verbose
 
 RUN node load_munichways.mjs
 
-RUN REACT_APP_OSRM_BACKEND="$BACKEND_URL" npm run build
+RUN REACT_APP_OSRM_BACKEND="$BACKEND_URL" REACT_APP_VERSION="$VERSION" npm run build
 
 FROM ubuntu/nginx
 
