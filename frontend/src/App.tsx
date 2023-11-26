@@ -905,7 +905,7 @@ function App() {
             <div style={{fontSize: '0.75rem', margin: "0 auto 15px auto", textAlign: 'center' }}>
               <Link style={{cursor: "pointer" }} onClick={() => setShowImpressum(true)}>Impressum und Datenschutzerklärung</Link><br />
               <div style={{ padding: 2 }}></div>
-              <span><b>RadlNavi {process.env.REACT_APP_VERSION || "v1"}</b> von </span><Link style={{cursor: "pointer" }} onClick={() => window.open("https://github.com/MunichWays/radlnavi", "_blank")}>https://github.com/MunichWays/radlnavi</Link>
+              <Link style={{cursor: "pointer", fontWeight: 'bold' }} onClick={() => window.open(`https://github.com/MunichWays/radlnavi/releases/tag/${process.env.REACT_APP_VERSION || "v1"}`, "_blank")}>Das ist neu in RadlNavi {process.env.REACT_APP_VERSION || "v1"}</Link>
             </div>
           </div>
         </SwipeableDrawer>
