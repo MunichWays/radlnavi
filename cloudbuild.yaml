@@ -18,6 +18,7 @@ steps:
   - build-frontend
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
+  id: deploy-backend
   waitFor:
   - push-backend
   args:
@@ -32,6 +33,7 @@ steps:
   entrypoint: gcloud
   waitFor:
   - push-frontend
+  - deploy-backend
   args:
   - 'run'
   - 'deploy'
