@@ -9,13 +9,13 @@ find_access_tag = require("lib/access").find_access_tag
 limit = require("lib/maxspeed").limit
 
 function setup()
-  local default_speed = 22
+  local default_speed = 20
   local walking_speed = 4
 
   return {
     properties = {
       u_turn_penalty                = 20,
-      traffic_light_penalty         = 2,
+      traffic_light_penalty         = 4,
       weight_name                   = 'cyclability',
       --weight_name                   = 'duration',
       process_call_tagless_node     = false,
@@ -29,7 +29,7 @@ function setup()
     default_speed             = default_speed,
     walking_speed             = walking_speed,
     oneway_handling           = true,
-    turn_penalty              = 10,
+    turn_penalty              = 12,
     turn_bias                 = 1.4,
     use_public_transport      = false,
 
@@ -134,8 +134,8 @@ function setup()
       living_street = default_speed,
       road = default_speed,
       service = default_speed,
-      track = 15,
-      path = 15
+      track = 18,
+      path = 18
     },
 
     pedestrian_speeds = {
@@ -176,16 +176,16 @@ function setup()
 
     surface_speeds = {
       asphalt = default_speed,
+      compacted = default_speed,
+      fine_gravel = 19,
+      paving_stones = 19,
       ["cobblestone:flattened"] = 18,
-      compacted = 18,
-      paving_stones = 16,
-      fine_gravel = 14,
-      sett = 14,
+      sett = 18,
+      pebblestone = 16,
+      cobblestone = 15,
       earth = 13,
-      cobblestone = 12,
-      pebblestone = 12,
-      dirt = 8,
-      unhewn_cobblestone = 6,
+      dirt = 10,
+      unhewn_cobblestone = 10,
       unpaved = 6,
       gravel = 6,
       ground = 6,
@@ -208,6 +208,11 @@ function setup()
     },
 
     smoothness_speeds = {
+      excellent = 1.0,
+      good = 1.0,
+      intermediate = 0.9,
+      bad = 0.7,
+      very_bad = 0.5,
     },
 
     avoid = Set {
@@ -646,9 +651,6 @@ function process_way(profile, way, result)
     -- our main handler
     handle_bicycle_tags,
 
-    -- compute speed taking into account way type, maxspeed tags, etc.
-    WayHandlers.surface,
-
     -- handle turn lanes and road classification, used for guidance
     WayHandlers.classification,
 
@@ -670,10 +672,25 @@ function process_way(profile, way, result)
 
   WayHandlers.run(profile, way, result, data, handlers)
 
+  -- surface
+  local surface = way:get_value_by_key("surface")
+  local smoothness = way:get_value_by_key("smoothness")
+
+  if surface and profile.surface_speeds[surface] then
+    result.forward_speed = math.min(profile.surface_speeds[surface], result.forward_speed)
+    result.backward_speed = math.min(profile.surface_speeds[surface], result.backward_speed)
+  end
+
+  if smoothness and profile.smoothness_speeds[smoothness] then
+    result.forward_speed = profile.smoothness_speeds[smoothness] * result.forward_speed
+    result.backward_speed = profile.smoothness_speeds[smoothness] * result.backward_speed
+  end
+
+  -- munichways ratings
   local color = way:get_value_by_key("class:bicycle")
   local color_penalty = 0.7
   if color and color == "-2" then
-    color_penalty = 0.4
+    color_penalty = 0.5
   end
   if color and color == "-1" then
     color_penalty = 0.6
