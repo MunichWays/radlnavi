@@ -1,12 +1,17 @@
 #!/bin/bash
 
+if [ "$1" != "--backend-only" ]; then
+    echo "building frontend service ..."
+    docker build --network=host --build-arg BACKEND_URL="http://localhost:8080" --build-arg VERSION="dev" -f ./frontend/Dockerfile -t radlnavi-frontend ./frontend
+    echo "building frontend service done."
+else
+    echo "-- skipping frontend build --"
+    echo
+fi
+
 echo "building backend service ..."
 docker build --network=host -f ./backend/Dockerfile -t radlnavi-backend ./backend
 echo "building backend service done."
-
-echo "building frontend service ..."
-docker build --network=host --build-arg BACKEND_URL="http://localhost:8080" -f ./frontend/Dockerfile -t radlnavi-frontend ./frontend
-echo "building frontend service done."
 
 docker stop radlnavi-frontend radlnavi-backend
 sleep 1
