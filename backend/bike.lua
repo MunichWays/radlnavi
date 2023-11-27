@@ -51,7 +51,8 @@ function setup()
       'gate',
       'lift_gate',
       'no',
-      'block'
+      'block',
+      'kerb'
     },
 
     access_tag_whitelist = Set {
