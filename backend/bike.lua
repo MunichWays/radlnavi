@@ -723,6 +723,12 @@ function process_way(profile, way, result)
     result.backward_speed = 0
   end
 
+  -- do not route via steps where there's no cycling possible
+  if data.highway == "steps" and data.bicycle == "dismount" then
+    result.forward_speed = 0
+    result.backward_speed = 0
+  end
+
   if result.forward_speed > 0 then
     result.forward_rate = result.forward_speed / 3.6 * class_bicycle_penalty
   end
