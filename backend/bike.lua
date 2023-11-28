@@ -688,19 +688,28 @@ function process_way(profile, way, result)
   end
 
   -- munichways ratings
-  local color = way:get_value_by_key("class:bicycle")
-  local color_penalty = 0.7
-  if color and color == "-2" then
-    color_penalty = 0.5
-  end
-  if color and color == "-1" then
-    color_penalty = 0.6
-  end
-  if color and color == "1" then
-    color_penalty = 0.8
-  end
-  if color and color == "2" then
-    color_penalty = 1
+  local class_bicycle = way:get_value_by_key("class:bicycle")
+  local class_bicycle_penalty = 0.7
+
+  if class_bicycle then
+    if class_bicycle == "-3" then
+      class_bicycle_penalty = 0
+    end
+    if class_bicycle == "-2" then
+      class_bicycle_penalty = 0.4
+    end
+    if class_bicycle == "-1" then
+      class_bicycle_penalty = 0.6
+    end
+    if class_bicycle == "1" then
+      class_bicycle_penalty = 0.8
+    end
+    if class_bicycle == "2" then
+      class_bicycle_penalty = 1
+    end
+    if class_bicycle == "3" then
+      class_bicycle_penalty = 1.2
+    end
   end
 
   -- force routing via cycleway, if one exists
@@ -715,10 +724,10 @@ function process_way(profile, way, result)
   end
 
   if result.forward_speed > 0 then
-    result.forward_rate = result.forward_speed / 3.6 * color_penalty
+    result.forward_rate = result.forward_speed / 3.6 * class_bicycle_penalty
   end
   if result.backward_speed > 0 then
-    result.backward_rate = result.backward_speed / 3.6 * color_penalty
+    result.backward_rate = result.backward_speed / 3.6 * class_bicycle_penalty
   end
 end
 

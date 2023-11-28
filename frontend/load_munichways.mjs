@@ -27,14 +27,18 @@ function translateColor(color) {
 
 function translateClassBicycle(clBicycle) {
     switch (clBicycle) {
-        case "-2":
+        case "-3":
             return "black";
+        case "-2":
+            return "#300";
         case "-1":
             return "red";
         case "1":
             return "yellow";
         case "2":
             return "green";
+        case "3":
+            return "darkgreen";
         default:
             return "blue";
     }

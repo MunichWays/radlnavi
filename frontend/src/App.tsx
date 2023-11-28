@@ -1019,7 +1019,7 @@ function App() {
             var layerType = layer.feature.geometry.type;
             if (layerType == 'LineString') {
               if (typeof layer.setStyle == "function") {
-                layer.setStyle({ weight: 5, dashArray: "7 7", color: feature.properties.color, opacity: 0.5 });
+                layer.setStyle({ weight: 5, color: feature.properties.color, opacity: 0.5 });
               }
             }
           }} /> : null}

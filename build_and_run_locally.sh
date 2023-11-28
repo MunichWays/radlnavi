@@ -9,9 +9,14 @@ else
     echo
 fi
 
-echo "building backend service ..."
-docker build --network=host -f ./backend/Dockerfile -t radlnavi-backend ./backend
-echo "building backend service done."
+if [ "$1" != "--frontend-only" ]; then
+    echo "building backend service ..."
+    docker build --network=host -f ./backend/Dockerfile -t radlnavi-backend ./backend
+    echo "building backend service done."
+else
+    echo "-- skipping backend build --"
+    echo
+fi
 
 docker stop radlnavi-frontend radlnavi-backend
 sleep 1
