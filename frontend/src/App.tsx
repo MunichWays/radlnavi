@@ -629,8 +629,8 @@ function App() {
       <div style={{ display: 'flex', height: '30px' }}>{
         [...surfacesOnRoute.entries()]
           .sort((a, b) => a[1] - b[1])
-          .map(([k, v]) => <div key={k} onTouchStart={() => setHightlightSurface(k)} onTouchEnd={() => setHightlightSurface(null)} onMouseOver={() => setHightlightSurface(k)} onMouseOut={() => setHightlightSurface(null)} id={k} style={{ background: SURFACE_COLORS.get(k) || 'gray', flexGrow: v / ([...surfacesOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}></div>)
-          .map((element) => element.key === hightlightSurface ? <Tooltip arrow placement="top" open={hightlightSurface != null} title={hightlightSurface}>{element}</Tooltip> : element)
+          .map(([k, v]) => <div key={k} onTouchStart={() => setHightlightSurface(k)} onTouchEnd={() => setHightlightSurface(null)} onMouseOver={() => setHightlightSurface(k)} onMouseOut={() => setHightlightSurface(null)} id={k} style={{ background: SURFACE_COLORS.get(k) || 'gray', flexGrow: v / ([...surfacesOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}>{k}</div>)
+          //.map((element) => element.key === hightlightSurface ? <Tooltip arrow placement="top" open={hightlightSurface != null} title={hightlightSurface}>{element}</Tooltip> : element)
           .reverse()
       }</div>;
   }
@@ -768,7 +768,7 @@ function App() {
 
         <SwipeableDrawer sx={{ ".MuiDrawer-paper": { overflow: "visible" } }} variant="persistent" anchor="left" open={!menuMinimized} onClose={() => setMenuMinimized(true)} onOpen={() => setMenuMinimized(false)}>
 
-          <img src="logo.png" width="320" height="80" alt="RadlNavi Logo" style={{ margin: "10px auto" }}></img>
+          <img src="logo.svg" width="320" height="80" alt="RadlNavi Logo" style={{ margin: "10px auto" }}></img>
           <div style={{ margin: "-7px 5px 7px 5px", display: "flex", alignItems: "center", flexDirection: "column" }}>
             <Typography style={{ fontSize: "0.7rem" }}>Sichere Fahrradnavigation für München und Umgebung</Typography>
             <Link style={{ fontSize: "0.7rem", cursor: "pointer" }} onClick={() => setShowAbout(true)}>Wie macht RadlNavi meine Fahrradfahrt sicherer?</Link>
