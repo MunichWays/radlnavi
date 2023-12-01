@@ -22,7 +22,7 @@ import textInstructions from 'osrm-text-instructions';
 
 const togpx = require("togpx");
 
-const RADLNAVI_GREEN = "#00BCF2";
+const RADLNAVI_BLUE = "#00BCF2";
 
 const SOUTH_WEST = {
   lng: 10.334022,
@@ -36,7 +36,7 @@ const MAP_BOUNDS = new LatLngBounds(SOUTH_WEST, NORTH_EAST);
 const RADLNAVI_THEME = createTheme({
   palette: {
     primary: {
-      main: RADLNAVI_GREEN,
+      main: RADLNAVI_BLUE,
     },
   },
 });
@@ -629,8 +629,8 @@ function App() {
       <div style={{ display: 'flex', height: '30px' }}>{
         [...surfacesOnRoute.entries()]
           .sort((a, b) => a[1] - b[1])
-          .map(([k, v]) => <div key={k} onTouchStart={() => setHightlightSurface(k)} onTouchEnd={() => setHightlightSurface(null)} onMouseOver={() => setHightlightSurface(k)} onMouseOut={() => setHightlightSurface(null)} id={k} style={{ background: SURFACE_COLORS.get(k) || 'gray', flexGrow: v / ([...surfacesOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}>{k}</div>)
-          //.map((element) => element.key === hightlightSurface ? <Tooltip arrow placement="top" open={hightlightSurface != null} title={hightlightSurface}>{element}</Tooltip> : element)
+          .map(([k, v]) => <div key={k} onTouchStart={() => setHightlightSurface(k)} onTouchEnd={() => setHightlightSurface(null)} onMouseOver={() => setHightlightSurface(k)} onMouseOut={() => setHightlightSurface(null)} id={k} style={{ background: SURFACE_COLORS.get(k) || 'gray', flexGrow: v / ([...surfacesOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}></div>)
+          .map((element) => element.key === hightlightSurface ? <Tooltip arrow placement="top" open={hightlightSurface != null} title={hightlightSurface}>{element}</Tooltip> : element)
           .reverse()
       }</div>;
   }
