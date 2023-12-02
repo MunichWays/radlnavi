@@ -12,7 +12,7 @@ import {
 import { LatLngBounds, LeafletEvent, LeafletMouseEvent, Map as LMap, Icon as LeafletIcon } from "leaflet";
 import { throttle, debounce } from "lodash";
 import { TextField, IconButton, LinearProgress, Button, createTheme, ThemeProvider, Autocomplete, Tooltip, Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link, Typography, SwipeableDrawer, Fab } from "@mui/material";
-import { CenterFocusWeak, Download, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
+import { CenterFocusWeak, Directions, Download, FitScreen, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
 import lineSlice from "@turf/line-slice";
 import { point, lineString } from "@turf/helpers";
 import length from "@turf/length";
@@ -626,22 +626,44 @@ function App() {
 
   if (startPosition != null && endPosition != null && surfacesOnRoute != null) {
     surfacesElement =
-      <div style={{ display: 'flex', height: '30px' }}>{
+      <div style={{ display: 'flex', height: '30px', border: '2px solid #666', borderRadius: 4 }}>{
         [...surfacesOnRoute.entries()]
           .sort((a, b) => a[1] - b[1])
           .map(([k, v]) => <div key={k} onTouchStart={() => setHightlightSurface(k)} onTouchEnd={() => setHightlightSurface(null)} onMouseOver={() => setHightlightSurface(k)} onMouseOut={() => setHightlightSurface(null)} id={k} style={{ background: SURFACE_COLORS.get(k) || 'gray', flexGrow: v / ([...surfacesOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}></div>)
-          .map((element) => element.key === hightlightSurface ? <Tooltip arrow placement="top" open={hightlightSurface != null} title={hightlightSurface}>{element}</Tooltip> : element)
+          .map((element) => element.key === hightlightSurface ? <Tooltip componentsProps={{
+            tooltip: {
+              sx: {
+                backgroundColor: "black",
+              }
+            },
+            arrow: {
+              sx: {
+                color: "black",
+              }
+            }
+          }} arrow placement="top" title={hightlightSurface}>{element}</Tooltip> : element)
           .reverse()
       }</div>;
   }
 
   if (startPosition != null && endPosition != null && illuminatedOnRoute != null) {
     illuminatedElement =
-      <div style={{ display: 'flex', height: '30px', marginTop: 0 }}>{
+      <div style={{ display: 'flex', height: '30px', marginTop: 0, border: '2px solid #666', borderRadius: 4 }}>{
         [...illuminatedOnRoute.entries()]
           .sort((a, b) => a[1] - b[1])
           .map(([k, v]) => <div key={k} onTouchStart={() => setHightlightLit(k)} onTouchEnd={() => setHightlightLit(null)} onMouseOver={() => setHightlightLit(k)} onMouseOut={() => setHightlightLit(null)} id={k} style={{ background: LIT_COLORS.get(k) || 'gray', flexGrow: v / ([...illuminatedOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}></div>)
-          .map((element) => element.key === hightlightLit ? <Tooltip arrow placement="top" open={hightlightLit != null} title={hightlightLit}>{element}</Tooltip> : element)
+          .map((element) => element.key === hightlightLit ? <Tooltip componentsProps={{
+            tooltip: {
+              sx: {
+                backgroundColor: "black",
+              }
+            },
+            arrow: {
+              sx: {
+                color: "black",
+              }
+            }
+          }} arrow placement="top" title={hightlightLit}>{element}</Tooltip> : element)
           .reverse()
       }</div>;
   }
@@ -681,6 +703,7 @@ function App() {
   };
 
   const drawIlluminated = () => {
+    console.log(illuminatedPaths)
     return illuminatedPaths == null ? [] : [...illuminatedPaths.entries()]
       .filter(([key, _]) => key === hightlightLit)
       .map(([key, entry]) => entry.map(
@@ -762,9 +785,46 @@ function App() {
         ) : null}
 
         {menuMinimized ?
-          <Fab color="primary" onClick={() => goToMenu()} style={{ position: "absolute", top: 15, left: 15, zIndex: 1 }}>
-            <MenuOpen sx={{ transform: "scaleX(-1);" }} />
-          </Fab> : null}
+          <React.Fragment>
+            <Fab color="primary" onClick={() => goToMenu()} style={{ position: "absolute", top: 15, left: 15, zIndex: 1 }}>
+              <MenuOpen sx={{ transform: "scaleX(-1);" }} />
+            </Fab>
+            {isNavigating ?
+              <Tooltip title="Gesamte Route anzeigen">
+                <Fab color="primary" onClick={() => {
+                  setIsNavigating(false);
+                  map.fitBounds(new LatLngBounds(route.geometry.coordinates.map((c: any) => {
+                    return [c[1], c[0]];
+                  })));
+                }} style={{ position: "absolute", top: 15, left: 85, zIndex: 1 }}>
+                  <FitScreen />
+                </Fab></Tooltip> :
+              <Tooltip title="Starte interaktive Navigation">
+                <Fab color="primary" onClick={() => setIsNavigating(true)} style={{ position: "absolute", top: 15, left: 85, zIndex: 1 }}>
+                  <Directions />
+                </Fab>
+              </Tooltip>
+            }
+          </React.Fragment> : null}
+
+          {menuMinimized && !isNavigating && route && surfacesElement && illuminatedElement ?
+            <div style={{
+                padding: 10,
+                display: "flex",
+                left: 15,
+                bottom: 15,
+                right: 15,
+                height: 60,
+                position: "absolute",
+                flexDirection: 'column',
+                backgroundColor: "white",
+                borderRadius: 10,
+                zIndex: 1,
+              }}>
+              {surfacesElement}
+              <div style={{ height: 10 }}></div>
+              {illuminatedElement}
+            </div> : null}
 
         <SwipeableDrawer sx={{ ".MuiDrawer-paper": { overflow: "visible" } }} variant="persistent" anchor="left" open={!menuMinimized} onClose={() => setMenuMinimized(true)} onOpen={() => setMenuMinimized(false)}>
 
@@ -889,7 +949,7 @@ function App() {
             {route != null ?
               <Button
                 style={{ margin: "0 10px" }}
-                variant="contained"
+                variant="outlined"
                 color="primary"
                 onClick={() => exportGpx()}
                 disabled={route == null}
@@ -902,10 +962,10 @@ function App() {
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 5 }}>
               <FormControlLabel control={<Switch value={showMunichways} onChange={(_, checked) => setShowMunichways(checked)} />} label="MunichWays Bewertungen" />
             </div>
-            <div style={{fontSize: '0.75rem', margin: "0 auto 15px auto", textAlign: 'center' }}>
-              <Link style={{cursor: "pointer" }} onClick={() => setShowImpressum(true)}>Impressum und Datenschutzerklärung</Link><br />
+            <div style={{ fontSize: '0.75rem', margin: "0 auto 15px auto", textAlign: 'center' }}>
+              <Link style={{ cursor: "pointer" }} onClick={() => setShowImpressum(true)}>Impressum und Datenschutzerklärung</Link><br />
               <div style={{ padding: 2 }}></div>
-              <Link style={{cursor: "pointer", fontWeight: 'bold' }} onClick={() => window.open(`https://github.com/MunichWays/radlnavi/releases/tag/${process.env.REACT_APP_VERSION || "v1"}`, "_blank")}>Das ist neu in RadlNavi {process.env.REACT_APP_VERSION || "v1"}</Link>
+              <Link style={{ cursor: "pointer", fontWeight: 'bold' }} onClick={() => window.open(`https://github.com/MunichWays/radlnavi/releases/tag/${process.env.REACT_APP_VERSION || "v1"}`, "_blank")}>Das ist neu in RadlNavi {process.env.REACT_APP_VERSION || "v1"}</Link>
             </div>
           </div>
         </SwipeableDrawer>
@@ -1026,7 +1086,7 @@ function App() {
         </LeafletMap>
       </div>
 
-      {navigationPath == null || route == null || lineToRoute == null ? null :
+      {navigationPath == null || route == null || lineToRoute == null || !isNavigating ? null :
         <Button
           variant="contained"
           color="warning"
