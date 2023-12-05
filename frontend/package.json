@@ -12,6 +12,8 @@
     "@testing-library/user-event": "14.4.3",
     "@turf/helpers": "^6.5.0",
     "@turf/length": "^6.5.0",
+    "@turf/line-overlap": "^6.5.0",
+    "@turf/line-segment": "^6.5.0",
     "@turf/line-slice": "^6.5.0",
     "@turf/line-slice-along": "^6.5.0",
     "@types/jest": "^26.0.10",

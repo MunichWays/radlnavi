@@ -12,13 +12,16 @@ import {
 import { LatLngBounds, LeafletEvent, LeafletMouseEvent, Map as LMap, Icon as LeafletIcon } from "leaflet";
 import { throttle, debounce } from "lodash";
 import { TextField, IconButton, LinearProgress, Button, createTheme, ThemeProvider, Autocomplete, Tooltip, Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link, Typography, SwipeableDrawer, Fab } from "@mui/material";
-import { CenterFocusWeak, Directions, Download, FitScreen, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
+import { CenterFocusWeak, Directions, Download, FitScreen, IntegrationInstructionsRounded, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
 import lineSlice from "@turf/line-slice";
 import { point, lineString } from "@turf/helpers";
 import length from "@turf/length";
 import lineSliceAlong from "@turf/line-slice-along";
+import lineOverlap from "@turf/line-overlap";
+import lineSegment from "@turf/line-segment";
 import RotatedMarker from './RotatedMarker';
 import textInstructions from 'osrm-text-instructions';
+import { stringify } from "querystring";
 
 const togpx = require("togpx");
 
@@ -112,12 +115,33 @@ function download(filename: string, xml: string): void {
   document.body.removeChild(element);
 }
 
+function translateBicycleClass(bicycleClass: string): string {
+  switch (bicycleClass) {
+    case "-3":
+      return "Gefährlich";
+    case "-2":
+      return "Sehr stressig";
+    case "-1":
+      return "Stressig";
+    case "1":
+      return "Entspannt";
+    case "2":
+      return "Sehr entspannt";
+    case "3":
+      return "Einen Umweg wert"
+    default:
+      return "Nicht bewertet"
+  }
+}
+
 function translateSurface(surface: string): string {
   switch (surface) {
     case "paved":
+      return "Befestigt";
     case "asphalt":
+      return "Asphalt"
     case "concrete":
-      return "Asphalt";
+      return "Fest/Betoniert";
     case "concrete:lanes":
       return "Asphaltweg";
     case "concrete:plates":
@@ -125,8 +149,9 @@ function translateSurface(surface: string): string {
     case "paving_stones":
       return "Ebener Pflasterstein";
     case "sett":
-    case "cobblestone":
       return "Pflasterstein";
+    case "cobblestone":
+      return "Rundlicher Pflasterstein";
     case "unhewn_cobblestone":
       return "Kopfsteinpflaster";
     case "unpaved":
@@ -134,12 +159,15 @@ function translateSurface(surface: string): string {
     case "compacted":
       return "Guter Waldweg";
     case "fine_gravel":
+      return "Feiner Kies";
     case "pebblestone":
       return "Kies";
     case "gravel":
       return "Schotter";
     case "earth":
+      return "Erde";
     case "dirt":
+      return "Lockere Erde"
     case "ground":
       return "Erdboden";
     case "grass":
@@ -153,40 +181,59 @@ function translateSurface(surface: string): string {
     case "woodchips":
       return "Holzschnitzel";
     default:
-      return surface;
+      return "Unbekannt";
   }
 }
 
+const BICYCLE_CLASSES_COLORS = new Map([
+  ["-3", "black"],
+  ["-2", "black"],
+  ["-1", "red"],
+  ["0", "grey"],
+  ["1", "yellow"],
+  ["2", "green"],
+  ["3", "green"],
+])
+
 const SURFACE_COLORS = new Map([
-  ["Asphalt", "#4682B4"],
-  ["Asphaltweg", "#ADD8E6"],
-  ["Asphaltplatten", "#B0C4DE"],
-  ["Ebener Pflasterstein", "#C0C0C0"],
-  ["Pflasterstein", "#A9A9A9"],
-  ["Kopfsteinpflaster", "#808080"],
-  ["Uneben", "#FFA07A"],
-  ["Guter Waldweg", "#006400"],
-  ["Kies", "#708090"],
-  ["Schotter", "#696969"],
-  ["Erdboden", "#CD853F"],
-  ["Gras", "#228B22"],
-  ["Betonstein auf Gras", "#8FBC8F"],
-  ["Matsch", "#BDB76B"],
-  ["Sand", "#F4A460"],
-  ["Holzschnitzel", "#DEB887"],
+  ["asphalt", "#4682B4"],
+  ["concrete", "#336187"],
+  ["paved", "#385a75"],
+  ["concrete:lanes", "#ADD8E6"],
+  ["concrete:plates", "#B0C4DE"],
+  ["paving_stones", "#C0C0C0"],
+  ["sett", "#A9A9A9"],
+  ["cobblestone", "#A9A9A9"],
+  ["unhewn_cobblestone", "#808080"],
+  ["unpaved", "#FFA07A"],
+  ["compacted", "#006400"],
+  ["fine_gravel", "#708090"],
+  ["pebblestone", "#708090"],
+  ["gravel", "#696969"],
+  ["earth", "#CD853F"],
+  ["dirt", "#CD853F"],
+  ["ground", "#CD853F"],
+  ["grass", "#228B22"],
+  ["grass_paver", "#8FBC8F"],
+  ["mud", "#BDB76B"],
+  ["sand", "#F4A460"],
+  ["woodchips", "#DEB887"],
 ]);
 
 function translateLit(lit: string): string {
   if (lit === "no") {
     return "Nicht beleuchtet";
-  } else {
+  } else if (lit === "yes") {
     return "Beleuchtet";
+  } else {
+    return "Unbekannt";
   }
 }
 
 const LIT_COLORS = new Map([
-  ["Beleuchtet", "yellow"],
-  ["Nicht beleuchtet", "black"],
+  ["yes", "yellow"],
+  ["no", "black"],
+  ["unknown", "grey"],
 ]);
 
 const endMarkerIcon = new LeafletIcon({
@@ -241,12 +288,17 @@ function App() {
     string,
     number
   >>(null);
+  const [bicycleClassesOnRoute, setBicycleClassesOnRoute] = useState<null | Map<
+    string,
+    number
+  >>(null);
   const [illuminatedOnRoute, setIlluminatedOnRoute] = useState<null | Map<
     string,
     number
   >>(null);
   const [illuminatedPaths, setIlluminatedPaths] = useState<null | Map<string, Array<Array<{ lat: number, lon: number }>>>>(null);
   const [surfacePaths, setSurfacePaths] = useState<null | Map<string, Array<Array<{ lat: number, lon: number }>>>>(null);
+  const [bicycleClassesPaths, setBicycleClassesPaths] = useState<null | Map<string, Array<Array<{ lat: number, lon: number }>>>>(null);
   const [navigationPath, setNavigationPath] = useState<null | Array<{ lat: number, lng: number }> | null>(null);
   const [routeMetadata, setRouteMetadata] = useState<RouteMetadata | null>(
     null
@@ -260,6 +312,7 @@ function App() {
   const [menuMinimized, setMenuMinimized] = useState<boolean>(false);
   const [hightlightLit, setHightlightLit] = useState<string | null>(null);
   const [hightlightSurface, setHightlightSurface] = useState<string | null>(null);
+  const [hightlightBicycleClass, setHightlightBicycleClass] = useState<string | null>(null);
   const [map, setMap] = useState<LMap | null>(null);
   const [showMunichways, setShowMunichways] = useState(false);
   const [geoJsonData, setGeoJsonData] = useState(null);
@@ -369,21 +422,12 @@ function App() {
   const calculateRouteSurface = useCallback(
     debounce((results: any) => {
       const nodes = results.routes[0].legs[0].annotation.nodes;
-      const distances = results.routes[0].legs[0].annotation.distance;
-
-      const queryItems: Array<QueryItem> = nodes
-        .map((n: number, i: number) => {
-          if (i < nodes.length - 1) {
-            return {
-              distance: distances[i],
-              start: n,
-              end: nodes[i + 1],
-            };
-          } else {
-            return null;
-          }
-        })
-        .filter((i: QueryItem | null) => i !== null);
+      const litPaths = new Map();
+      const litDistances = new Map();
+      const surfacesPaths = new Map();
+      const surfacesDistances = new Map();
+      const bicycleClassPaths = new Map();
+      const bicycleClassDistances = new Map();
 
       const queryData = `[out:json][timeout:25];node(id:${nodes.join(",")});way(bn);(._;>;);out;`;
 
@@ -394,62 +438,67 @@ function App() {
       })
         .then((response) => response.json())
         .then((answer) => {
-          const surfaces: Map<string, number> = new Map();
-          const illuminated: Map<string, number> = new Map();
+          if (results?.routes?.[0]?.geometry) {
+            const routeCoords = results.routes[0].geometry.coordinates;
+            const nodesById = Object.fromEntries(answer.elements.filter((e: any) => e.type === 'node').map((node: any) => [node.id, node]));
+            const waysById = Object.fromEntries(answer.elements.filter((e: any) => e.type === 'way').map((way: any) => [way.id, way]));
 
-          const ways = answer.elements.filter((e: any) => e.type === 'way');
-          const nodesById = Object.fromEntries(answer.elements.filter((e: any) => e.type === 'node').map((node: any) => [node.id, node]));
-          const illuminatedPaths = new Map<string, Array<Array<{ lat: number, lon: number }>>>();
-          const surfacePaths = new Map<string, Array<Array<{ lat: number, lon: number }>>>();
+            const routeNodes = nodes.map((node: any) => nodesById[node]);
+            const routeWays = new Map();
 
-          for (const item of queryItems) {
-            const wayContainingNodes = ways.find((way: any) => way.nodes.includes(item.start) && way.nodes.includes(item.end));
-            const surface = wayContainingNodes?.tags?.surface === undefined ? "Unbekannt" : translateSurface(wayContainingNodes.tags.surface) || "Unbekannt";
-            const lit = wayContainingNodes?.tags?.lit === undefined ? "Unbekannt" : translateLit(wayContainingNodes.tags.lit) || "Unbekannt";
-            const startNode = nodesById[item.start];
-            const endNode = nodesById[item.end];
-            const path = [startNode, endNode];
+            routeNodes[0].lat = routeCoords[0][1];
+            routeNodes[0].lon = routeCoords[0][0];
+            routeNodes[routeNodes.length - 1].lat = routeCoords.slice(-1)[0][1];
+            routeNodes[routeNodes.length - 1].lon = routeCoords.slice(-1)[0][0];
 
-            if (illuminatedPaths.has(lit)) {
-              const lastPoint = illuminatedPaths.get(lit)?.slice(-1)?.[0]?.slice(-1)?.[0];
-              if (lastPoint !== undefined && lastPoint.lat === startNode.lat && lastPoint.lon === startNode.lon) {
-                illuminatedPaths.get(lit)?.slice(-1)?.[0].push(endNode);
-              } else {
-                illuminatedPaths.get(lit)?.push(path);
-              }
-            } else {
-              illuminatedPaths.set(lit, [path]);
-            }
+            routeNodes
+              .map((node: any, index: int) => index > 0 ? [routeNodes[index - 1], node] : null)
+              .filter((pair) => pair !== null)
+              .forEach(([nodeA, nodeB]) => {
+                Object.values(waysById)
+                  .filter(way =>
+                    way.nodes.includes(nodeA.id) &&
+                    way.nodes.includes(nodeB.id) &&
+                    Math.abs(way.nodes.indexOf(nodeA.id) - way.nodes.indexOf(nodeB.id)) === 1
+                  )
+                  .map(way => routeWays.has(way.id) ? routeWays.get(way.id) : routeWays.set(way.id, []).get(way.id))
+                  .forEach(wayNodes => wayNodes.slice(-1)[0] === nodeA ? wayNodes.push(nodeB) : wayNodes.push(nodeA, nodeB))
+              });
 
-            if (surfacePaths.has(surface)) {
-              const lastPoint = surfacePaths.get(surface)?.slice(-1)?.[0]?.slice(-1)?.[0];
-              if (lastPoint !== undefined && lastPoint.lat === startNode.lat && lastPoint.lon === startNode.lon) {
-                surfacePaths.get(surface)?.slice(-1)?.[0].push(endNode);
-              } else {
-                surfacePaths.get(surface)?.push(path);
-              }
-            } else {
-              surfacePaths.set(surface, [path]);
-            }
+            const wayPaths = [...routeWays.entries()].map(([wayId, nodes]) => [waysById[wayId], nodes.map(node => [node.lon, node.lat])]);
+            const wayDistances = [...routeWays.entries()].map(([wayId, nodes]) => [waysById[wayId], length(lineString(nodes.map(node => [node.lon, node.lat])))]);
 
-            if (surfaces.has(surface)) {
-              const current = surfaces.get(surface) || 0;
-              surfaces.set(surface, current + item.distance);
-            } else {
-              surfaces.set(surface, item.distance);
-            }
+            wayPaths
+              .map(([way, coords]) => [way?.tags['lit'] || 'unknown', coords])
+              .forEach(([lit, coords]) => litPaths.has(lit) ? litPaths.get(lit).push(coords) : litPaths.set(lit, [coords]));
 
-            if (illuminated.has(lit)) {
-              const current = illuminated.get(lit) || 0;
-              illuminated.set(lit, current + item.distance);
-            } else {
-              illuminated.set(lit, item.distance);
-            }
+            wayDistances
+              .map(([way, distance]) => [way?.tags['lit'] || 'unknown', distance])
+              .forEach(([lit, distance]) => litDistances.has(lit) ? litDistances.set(lit, litDistances.get(lit) + distance) : litDistances.set(lit, distance));
+
+            wayPaths
+              .map(([way, coords]) => [way?.tags['surface'] || 'unknown', coords])
+              .forEach(([lit, coords]) => surfacesPaths.has(lit) ? surfacesPaths.get(lit).push(coords) : surfacesPaths.set(lit, [coords]));
+
+            wayDistances
+              .map(([way, distance]) => [way?.tags['surface'] || 'unknown', distance])
+              .forEach(([lit, distance]) => surfacesDistances.has(lit) ? surfacesDistances.set(lit, surfacesDistances.get(lit) + distance) : surfacesDistances.set(lit, distance));
+
+            wayPaths
+              .map(([way, coords]) => [way?.tags['class:bicycle'] || '0', coords])
+              .forEach(([lit, coords]) => bicycleClassPaths.has(lit) ? bicycleClassPaths.get(lit).push(coords) : bicycleClassPaths.set(lit, [coords]));
+
+            wayDistances
+              .map(([way, distance]) => [way?.tags['class:bicycle'] || '0', distance])
+              .forEach(([lit, distance]) => bicycleClassDistances.has(lit) ? bicycleClassDistances.set(lit, bicycleClassDistances.get(lit) + distance) : bicycleClassDistances.set(lit, distance));
           }
-          setIlluminatedPaths(illuminatedPaths);
-          setSurfacePaths(surfacePaths);
-          setSurfacesOnRoute(surfaces);
-          setIlluminatedOnRoute(illuminated);
+
+          setIlluminatedPaths(litPaths);
+          setIlluminatedOnRoute(litDistances);
+          setSurfacePaths(surfacesPaths);
+          setSurfacesOnRoute(surfacesDistances);
+          setBicycleClassesPaths(bicycleClassPaths);
+          setBicycleClassesOnRoute(bicycleClassDistances);
         });
     }, 1000),
     []
@@ -482,6 +531,8 @@ function App() {
       setUserPosition(null);
       setSurfacesOnRoute(null);
       setIlluminatedOnRoute(null);
+      setBicycleClassesOnRoute(null);
+      setBicycleClassesPaths(null);
       if (startPosition && endPosition) {
         fetch(
           `${process.env.REACT_APP_OSRM_BACKEND}/route/v1/bike/${startPosition.lon},${startPosition.lat}%3b${endPosition.lon},${endPosition.lat
@@ -624,6 +675,29 @@ function App() {
   let surfacesElement = null;
   let illuminatedElement = null;
 
+  let bicycleClassesElement = null;
+  if (startPosition != null && endPosition != null && bicycleClassesOnRoute != null) {
+    bicycleClassesElement =
+      <div style={{ display: 'flex', height: '30px', border: '2px solid #666', borderRadius: 4, marginTop: 0 }}>{
+        [...bicycleClassesOnRoute.entries()]
+          .sort(([k1,], [k2,]) => parseInt(k1) - parseInt(k2))
+          .map(([k, v]) => <div key={k} id={k} onTouchStart={() => setHightlightBicycleClass(k)} onTouchEnd={() => setHightlightBicycleClass(null)} onMouseOver={() => setHightlightBicycleClass(k)} onMouseOut={() => setHightlightBicycleClass(null)} style={{ background: BICYCLE_CLASSES_COLORS.get(k) || 'gray', flexGrow: v / ([...bicycleClassesOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}></div>)
+          .map((element) => <Tooltip componentsProps={{
+            tooltip: {
+              sx: {
+                backgroundColor: "black",
+              }
+            },
+            arrow: {
+              sx: {
+                color: "black",
+              }
+            }
+          }} arrow placement="top" title={translateBicycleClass(element.key)}>{element}</Tooltip>)
+          .reverse()
+      }</div>;
+  }
+
   if (startPosition != null && endPosition != null && surfacesOnRoute != null) {
     surfacesElement =
       <div style={{ display: 'flex', height: '30px', border: '2px solid #666', borderRadius: 4 }}>{
@@ -641,7 +715,7 @@ function App() {
                 color: "black",
               }
             }
-          }} arrow placement="top" title={hightlightSurface}>{element}</Tooltip> : element)
+          }} arrow placement="top" title={translateSurface(hightlightSurface)}>{element}</Tooltip> : element)
           .reverse()
       }</div>;
   }
@@ -663,7 +737,7 @@ function App() {
                 color: "black",
               }
             }
-          }} arrow placement="top" title={hightlightLit}>{element}</Tooltip> : element)
+          }} arrow placement="top" title={translateLit(hightlightLit)}>{element}</Tooltip> : element)
           .reverse()
       }</div>;
   }
@@ -703,22 +777,15 @@ function App() {
   };
 
   const drawIlluminated = () => {
-    console.log(illuminatedPaths)
     return illuminatedPaths == null ? [] : [...illuminatedPaths.entries()]
       .filter(([key, _]) => key === hightlightLit)
       .map(([key, entry]) => entry.map(
-        (litPath) => <React.Fragment>
-          <Polyline key={`${key}-border`} color={'white'} weight={9} positions={
+        (litPath, i) =>
+          <Polyline key={`${key}-${i}`} color={LIT_COLORS.get(key) || 'gray'} weight={6} positions={
             litPath.map(
-              (point) => ({ lat: point.lat, lng: point.lon })
+              (point) => ({ lat: point[1], lng: point[0] })
             )
           }></Polyline>
-          <Polyline key={`${key}-fill`} color={LIT_COLORS.get(key) || 'gray'} weight={6} positions={
-            litPath.map(
-              (point) => ({ lat: point.lat, lng: point.lon })
-            )
-          }></Polyline>
-        </React.Fragment>
       )
       );
   };
@@ -727,18 +794,26 @@ function App() {
     return surfacePaths == null ? [] : [...surfacePaths.entries()]
       .filter(([key, _]) => key === hightlightSurface)
       .map(([key, entry]) => entry.map(
-        (surfacePath) => <React.Fragment>
-          <Polyline key={`${key}-border`} color={'white'} weight={9} positions={
+        (surfacePath, i) =>
+          <Polyline key={`${key}-${i}`} color={SURFACE_COLORS.get(key) || 'gray'} weight={6} positions={
             surfacePath.map(
-              (point) => ({ lat: point.lat, lng: point.lon })
+              (point) => ({ lat: point[1], lng: point[0] })
             )
           }></Polyline>
-          <Polyline key={`${key}-fill`} color={SURFACE_COLORS.get(key) || 'gray'} weight={6} positions={
-            surfacePath.map(
-              (point) => ({ lat: point.lat, lng: point.lon })
+      )
+      );
+  };
+
+  const drawBicycleClasses = () => {
+    return bicycleClassesPaths == null ? [] : [...bicycleClassesPaths.entries()]
+      .filter(([key, _]) => key === hightlightBicycleClass)
+      .map(([key, entry]) => entry.map(
+        (bicycleClassPath, i) =>
+          <Polyline key={`${key}-${i}`} color={BICYCLE_CLASSES_COLORS.get(key) || 'gray'} weight={6} positions={
+            bicycleClassPath.map(
+              (point) => ({ lat: point[1], lng: point[0] })
             )
           }></Polyline>
-        </React.Fragment>
       )
       );
   };
@@ -807,24 +882,26 @@ function App() {
             }
           </React.Fragment> : null}
 
-          {menuMinimized && !isNavigating && route && surfacesElement && illuminatedElement ?
-            <div style={{
-                padding: 10,
-                display: "flex",
-                left: 15,
-                bottom: 15,
-                right: 15,
-                height: 60,
-                position: "absolute",
-                flexDirection: 'column',
-                backgroundColor: "white",
-                borderRadius: 10,
-                zIndex: 1,
-              }}>
-              {surfacesElement}
-              <div style={{ height: 10 }}></div>
-              {illuminatedElement}
-            </div> : null}
+        {menuMinimized && !isNavigating && route && surfacesElement && illuminatedElement ?
+          <div style={{
+            padding: 10,
+            display: "flex",
+            left: 15,
+            bottom: 15,
+            right: 15,
+            height: 90,
+            position: "absolute",
+            flexDirection: 'column',
+            backgroundColor: "white",
+            borderRadius: 10,
+            zIndex: 1,
+          }}>
+            {surfacesElement}
+            <div style={{ height: 10 }}></div>
+            {illuminatedElement}
+            <div style={{ height: 10 }}></div>
+            {bicycleClassesElement}
+          </div> : null}
 
         <SwipeableDrawer sx={{ ".MuiDrawer-paper": { overflow: "visible" } }} variant="persistent" anchor="left" open={!menuMinimized} onClose={() => setMenuMinimized(true)} onOpen={() => setMenuMinimized(false)}>
 
@@ -946,6 +1023,7 @@ function App() {
             {startPosition != null && endPosition != null && (surfacesElement == null || illuminatedElement == null || routeMetaElement == null) ? <LinearProgress sx={{ height: 10, borderRadius: 4, margin: "10px" }} /> : null}
             {surfacesElement}
             {illuminatedElement}
+            {bicycleClassesElement}
             {route != null ?
               <Button
                 style={{ margin: "0 10px" }}
@@ -1058,8 +1136,9 @@ function App() {
           {route != null && startPosition != null && endPosition != null
             ? drawRoute(route)
             : null}
-          {illuminatedPaths != null && startPosition != null && endPosition != null ? drawIlluminated() : null}
-          {surfacePaths != null && startPosition != null && endPosition != null ? drawSurfaces() : null}
+          {illuminatedPaths != null && startPosition != null && endPosition != null && hightlightLit !== null ? drawIlluminated() : null}
+          {surfacePaths != null && startPosition != null && endPosition != null && hightlightSurface !== null ? drawSurfaces() : null}
+          {bicycleClassesPaths != null && startPosition != null && endPosition != null && hightlightBicycleClass !== null ? drawBicycleClasses() : null}
           {navigationPath == null || route == null ? null :
             <Polyline color="#00BCF2" weight={6} positions={
               navigationPath
