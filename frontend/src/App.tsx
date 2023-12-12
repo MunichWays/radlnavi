@@ -8,6 +8,7 @@ import {
   Popup,
   Polyline,
   GeoJSON,
+  Tooltip as LeafletTooltip
 } from "react-leaflet";
 import { LatLngBounds, LeafletEvent, LeafletMouseEvent, Map as LMap, Icon as LeafletIcon } from "leaflet";
 import { throttle, debounce } from "lodash";
@@ -118,15 +119,15 @@ function download(filename: string, xml: string): void {
 function translateBicycleClass(bicycleClass: string): string {
   switch (bicycleClass) {
     case "-3":
-      return "Gefährlich";
+      return "Unter allen Umständen vermeiden";
     case "-2":
-      return "Sehr stressig";
+      return "Nur wenn unbedingt nötig";
     case "-1":
-      return "Stressig";
+      return "Wenn möglich vermeiden";
     case "1":
-      return "Entspannt";
+      return "In Ordnung";
     case "2":
-      return "Sehr entspannt";
+      return "Sehr schöner Weg";
     case "3":
       return "Einen Umweg wert"
     default:
@@ -187,12 +188,12 @@ function translateSurface(surface: string): string {
 
 const BICYCLE_CLASSES_COLORS = new Map([
   ["-3", "black"],
-  ["-2", "black"],
-  ["-1", "red"],
+  ["-2", "red"],
+  ["-1", "orange"],
   ["0", "grey"],
   ["1", "yellow"],
-  ["2", "green"],
-  ["3", "green"],
+  ["2", "#99CC66"],
+  ["3", "#33CC00"],
 ])
 
 const SURFACE_COLORS = new Map([
@@ -469,27 +470,27 @@ function App() {
             const wayDistances = [...routeWays.entries()].map(([wayId, nodes]) => [waysById[wayId], length(lineString(nodes.map(node => [node.lon, node.lat])))]);
 
             wayPaths
-              .map(([way, coords]) => [way?.tags['lit'] || 'unknown', coords])
+              .map(([way, coords]) => [way?.tags?.['lit'] || 'unknown', coords])
               .forEach(([lit, coords]) => litPaths.has(lit) ? litPaths.get(lit).push(coords) : litPaths.set(lit, [coords]));
 
             wayDistances
-              .map(([way, distance]) => [way?.tags['lit'] || 'unknown', distance])
+              .map(([way, distance]) => [way?.tags?.['lit'] || 'unknown', distance])
               .forEach(([lit, distance]) => litDistances.has(lit) ? litDistances.set(lit, litDistances.get(lit) + distance) : litDistances.set(lit, distance));
 
             wayPaths
-              .map(([way, coords]) => [way?.tags['surface'] || 'unknown', coords])
+              .map(([way, coords]) => [way?.tags?.['surface'] || 'unknown', coords])
               .forEach(([lit, coords]) => surfacesPaths.has(lit) ? surfacesPaths.get(lit).push(coords) : surfacesPaths.set(lit, [coords]));
 
             wayDistances
-              .map(([way, distance]) => [way?.tags['surface'] || 'unknown', distance])
+              .map(([way, distance]) => [way?.tags?.['surface'] || 'unknown', distance])
               .forEach(([lit, distance]) => surfacesDistances.has(lit) ? surfacesDistances.set(lit, surfacesDistances.get(lit) + distance) : surfacesDistances.set(lit, distance));
 
             wayPaths
-              .map(([way, coords]) => [way?.tags['class:bicycle'] || '0', coords])
+              .map(([way, coords]) => [way?.tags?.['class:bicycle'] || '0', coords])
               .forEach(([lit, coords]) => bicycleClassPaths.has(lit) ? bicycleClassPaths.get(lit).push(coords) : bicycleClassPaths.set(lit, [coords]));
 
             wayDistances
-              .map(([way, distance]) => [way?.tags['class:bicycle'] || '0', distance])
+              .map(([way, distance]) => [way?.tags?.['class:bicycle'] || '0', distance])
               .forEach(([lit, distance]) => bicycleClassDistances.has(lit) ? bicycleClassDistances.set(lit, bicycleClassDistances.get(lit) + distance) : bicycleClassDistances.set(lit, distance));
           }
 
@@ -675,28 +676,6 @@ function App() {
   let surfacesElement = null;
   let illuminatedElement = null;
 
-  let bicycleClassesElement = null;
-  if (startPosition != null && endPosition != null && bicycleClassesOnRoute != null) {
-    bicycleClassesElement =
-      <div style={{ display: 'flex', height: '30px', border: '2px solid #666', borderRadius: 4, marginTop: 0 }}>{
-        [...bicycleClassesOnRoute.entries()]
-          .sort(([k1,], [k2,]) => parseInt(k1) - parseInt(k2))
-          .map(([k, v]) => <div key={k} id={k} onTouchStart={() => setHightlightBicycleClass(k)} onTouchEnd={() => setHightlightBicycleClass(null)} onMouseOver={() => setHightlightBicycleClass(k)} onMouseOut={() => setHightlightBicycleClass(null)} style={{ background: BICYCLE_CLASSES_COLORS.get(k) || 'gray', flexGrow: v / ([...bicycleClassesOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}></div>)
-          .map((element) => <Tooltip componentsProps={{
-            tooltip: {
-              sx: {
-                backgroundColor: "black",
-              }
-            },
-            arrow: {
-              sx: {
-                color: "black",
-              }
-            }
-          }} arrow placement="top" title={translateBicycleClass(element.key)}>{element}</Tooltip>)
-          .reverse()
-      }</div>;
-  }
 
   if (startPosition != null && endPosition != null && surfacesOnRoute != null) {
     surfacesElement =
@@ -773,7 +752,23 @@ function App() {
         lng: tuple[0],
       })
     );
-    return <Polyline positions={coords} color="#005180"></Polyline>;
+    return <React.Fragment>
+        <Polyline key={`route-${hightlightLit !== null || hightlightSurface !== null}`} weight={hightlightLit !== null || hightlightSurface !== null ? 3 : 6} positions={coords} color="black"></Polyline>
+        {bicycleClassesPaths == null || hightlightLit || hightlightSurface ? [] : [...bicycleClassesPaths.entries()]
+      .map(([key, entry]) => entry.map(
+        (bicycleClassPath, i) =>
+          <Polyline key={`${key}-${i}`} color={BICYCLE_CLASSES_COLORS.get(key) || 'gray'} weight={3} positions={
+            bicycleClassPath.map(
+              (point) => ({ lat: point[1], lng: point[0] })
+            )
+          }>
+              <LeafletTooltip interactive={true} sticky={true} content={translateBicycleClass(key)}>
+
+        </LeafletTooltip>
+          </Polyline>
+      )
+      )}
+      </React.Fragment>
   };
 
   const drawIlluminated = () => {
@@ -781,13 +776,23 @@ function App() {
       .filter(([key, _]) => key === hightlightLit)
       .map(([key, entry]) => entry.map(
         (litPath, i) =>
-          <Polyline key={`${key}-${i}`} color={LIT_COLORS.get(key) || 'gray'} weight={6} positions={
+          <Polyline key={`${key}-${i}-backdrop`} color="black" weight={8} positions={
             litPath.map(
               (point) => ({ lat: point[1], lng: point[0] })
             )
           }></Polyline>
       )
-      );
+      ).concat([...illuminatedPaths.entries()]
+      .filter(([key, _]) => key === hightlightLit)
+      .map(([key, entry]) => entry.map(
+        (litPath, i) =>
+          <Polyline key={`${key}-${i}`} color={LIT_COLORS.get(key) || 'gray'} weight={4} positions={
+            litPath.map(
+              (point) => ({ lat: point[1], lng: point[0] })
+            )
+          }></Polyline>
+      )
+      ));
   };
 
   const drawSurfaces = () => {
@@ -795,27 +800,25 @@ function App() {
       .filter(([key, _]) => key === hightlightSurface)
       .map(([key, entry]) => entry.map(
         (surfacePath, i) =>
-          <Polyline key={`${key}-${i}`} color={SURFACE_COLORS.get(key) || 'gray'} weight={6} positions={
+        <Polyline key={`${key}-${i}-backdrop`} color={"black"} weight={8} positions={
+          surfacePath.map(
+            (point) => ({ lat: point[1], lng: point[0] })
+          )
+        }></Polyline>
+      )
+      ).concat([...surfacePaths.entries()]
+      .filter(([key, _]) => key === hightlightSurface)
+      .map(([key, entry]) => entry.map(
+        (surfacePath, i) =>
+          <Polyline key={`${key}-${i}`} color={SURFACE_COLORS.get(key) || 'gray'} weight={4} positions={
             surfacePath.map(
               (point) => ({ lat: point[1], lng: point[0] })
             )
           }></Polyline>
       )
-      );
-  };
+      ));
 
-  const drawBicycleClasses = () => {
-    return bicycleClassesPaths == null ? [] : [...bicycleClassesPaths.entries()]
-      .filter(([key, _]) => key === hightlightBicycleClass)
-      .map(([key, entry]) => entry.map(
-        (bicycleClassPath, i) =>
-          <Polyline key={`${key}-${i}`} color={BICYCLE_CLASSES_COLORS.get(key) || 'gray'} weight={6} positions={
-            bicycleClassPath.map(
-              (point) => ({ lat: point[1], lng: point[0] })
-            )
-          }></Polyline>
-      )
-      );
+      
   };
 
   const goToMenu = useCallback(() => {
@@ -889,18 +892,17 @@ function App() {
             left: 15,
             bottom: 15,
             right: 15,
-            height: 90,
+            height: 70,
             position: "absolute",
             flexDirection: 'column',
             backgroundColor: "white",
+            boxShadow: "0 0 5px 0 black",
             borderRadius: 10,
             zIndex: 1,
           }}>
             {surfacesElement}
             <div style={{ height: 10 }}></div>
             {illuminatedElement}
-            <div style={{ height: 10 }}></div>
-            {bicycleClassesElement}
           </div> : null}
 
         <SwipeableDrawer sx={{ ".MuiDrawer-paper": { overflow: "visible" } }} variant="persistent" anchor="left" open={!menuMinimized} onClose={() => setMenuMinimized(true)} onOpen={() => setMenuMinimized(false)}>
@@ -1023,7 +1025,6 @@ function App() {
             {startPosition != null && endPosition != null && (surfacesElement == null || illuminatedElement == null || routeMetaElement == null) ? <LinearProgress sx={{ height: 10, borderRadius: 4, margin: "10px" }} /> : null}
             {surfacesElement}
             {illuminatedElement}
-            {bicycleClassesElement}
             {route != null ?
               <Button
                 style={{ margin: "0 10px" }}
@@ -1138,18 +1139,17 @@ function App() {
             : null}
           {illuminatedPaths != null && startPosition != null && endPosition != null && hightlightLit !== null ? drawIlluminated() : null}
           {surfacePaths != null && startPosition != null && endPosition != null && hightlightSurface !== null ? drawSurfaces() : null}
-          {bicycleClassesPaths != null && startPosition != null && endPosition != null && hightlightBicycleClass !== null ? drawBicycleClasses() : null}
-          {navigationPath == null || route == null ? null :
+          {!isNavigating || navigationPath == null || route == null ? null :
             <Polyline color="#00BCF2" weight={6} positions={
               navigationPath
             }></Polyline>
           }
-          {navigationPath == null || route == null || nextNavigationStep?.geometry == null ? null :
+          {!isNavigating ||navigationPath == null || route == null || nextNavigationStep?.geometry == null ? null :
             <Polyline color="#008CB4" weight={8} positions={
               nextNavigationStep.geometry
             }></Polyline>
           }
-          {navigationPath == null || route == null || lineToRoute == null ? null :
+          {!isNavigating ||navigationPath == null || route == null || lineToRoute == null ? null :
             <Polyline color="red" dashArray="7 7" weight={4} positions={
               lineToRoute
             }></Polyline>
