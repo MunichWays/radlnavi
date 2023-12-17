@@ -30,7 +30,7 @@ function translateClassBicycle(clBicycle) {
         case "-3":
             return "black";
         case "-2":
-            return "#300";
+            return "black";
         case "-1":
             return "red";
         case "1":
@@ -38,7 +38,7 @@ function translateClassBicycle(clBicycle) {
         case "2":
             return "green";
         case "3":
-            return "darkgreen";
+            return "green";
         default:
             return "blue";
     }

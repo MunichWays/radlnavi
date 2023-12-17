@@ -7,22 +7,19 @@ import {
   Marker,
   Popup,
   Polyline,
-  GeoJSON,
   Tooltip as LeafletTooltip
 } from "react-leaflet";
 import { LatLngBounds, LeafletEvent, LeafletMouseEvent, Map as LMap, Icon as LeafletIcon } from "leaflet";
 import { throttle, debounce } from "lodash";
 import { TextField, IconButton, LinearProgress, Button, createTheme, ThemeProvider, Autocomplete, Tooltip, Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link, Typography, SwipeableDrawer, Fab } from "@mui/material";
-import { CenterFocusWeak, Directions, Download, FitScreen, IntegrationInstructionsRounded, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
+import { CenterFocusWeak, Directions, Download, FitScreen, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
 import lineSlice from "@turf/line-slice";
 import { point, lineString } from "@turf/helpers";
 import length from "@turf/length";
 import lineSliceAlong from "@turf/line-slice-along";
-import lineOverlap from "@turf/line-overlap";
-import lineSegment from "@turf/line-segment";
 import RotatedMarker from './RotatedMarker';
 import textInstructions from 'osrm-text-instructions';
-import { stringify } from "querystring";
+import "leaflet.vectorgrid";
 
 const togpx = require("togpx");
 
@@ -188,12 +185,12 @@ function translateSurface(surface: string): string {
 
 const BICYCLE_CLASSES_COLORS = new Map([
   ["-3", "black"],
-  ["-2", "red"],
-  ["-1", "orange"],
-  ["0", "grey"],
+  ["-2", "black"],
+  ["-1", "red"],
+  ["0", "lightgrey"],
   ["1", "yellow"],
-  ["2", "#99CC66"],
-  ["3", "#33CC00"],
+  ["2", "green"],
+  ["3", "green"],
 ])
 
 const SURFACE_COLORS = new Map([
@@ -255,21 +252,12 @@ const userMarkerIcon = new LeafletIcon({
   iconAnchor: [24, 24],
 });
 
-
-
-function useGeoJsonLayerRefUpdate() {
-  const ref: MutableRefObject<any> = useRef(null);
-  const setRef = useCallback((node: any) => {
-    if (node) {
-      setTimeout(() => {
-        node.bringToBack();
-      }, 0);
-    }
-    ref.current = node;
-  }, []);
-
-  return [setRef]
-}
+const munichWaysLayer = L.vectorGrid.protobuf("/layers/munichways/{z}/{x}/{y}.pbf", {
+  vectorTileLayerStyles: {
+    munichways: (prop) => ({color : prop.color})
+  },
+  rendererFactory: L.canvas.tile,
+});
 
 function App() {
   const [startSuggestions, setStartSuggestions] = useState<
@@ -286,10 +274,6 @@ function App() {
   const [endPosition, setEndPosition] = useState<NominatimItem | null>(null);
   const [route, setRoute] = useState<null | any>();
   const [surfacesOnRoute, setSurfacesOnRoute] = useState<null | Map<
-    string,
-    number
-  >>(null);
-  const [bicycleClassesOnRoute, setBicycleClassesOnRoute] = useState<null | Map<
     string,
     number
   >>(null);
@@ -313,11 +297,8 @@ function App() {
   const [menuMinimized, setMenuMinimized] = useState<boolean>(false);
   const [hightlightLit, setHightlightLit] = useState<string | null>(null);
   const [hightlightSurface, setHightlightSurface] = useState<string | null>(null);
-  const [hightlightBicycleClass, setHightlightBicycleClass] = useState<string | null>(null);
   const [map, setMap] = useState<LMap | null>(null);
   const [showMunichways, setShowMunichways] = useState(false);
-  const [geoJsonData, setGeoJsonData] = useState(null);
-  const [geoJsonLayerRef] = useGeoJsonLayerRefUpdate();
   const [showAbout, setShowAbout] = useState(false);
   const [showImpressum, setShowImpressum] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
@@ -329,12 +310,14 @@ function App() {
   const [lineToRoute, setLineToRoute] = useState<LineGeo | null>(null);
 
   useEffect(() => {
-    if (map && showMunichways && !geoJsonData) {
-      fetch("munichways.json").then(response => response.json()).then((json) => {
-        setGeoJsonData(json);
-      });
+    if (map) {
+      if (showMunichways) {
+        munichWaysLayer.addTo(map);
+      } else {
+        munichWaysLayer.removeFrom(map);
+      }
     }
-  }, [map, geoJsonData, showMunichways]);
+  }, [map, showMunichways]);
 
   const autocompleteStart = useCallback(
     debounce((value: string) => {
@@ -499,7 +482,6 @@ function App() {
           setSurfacePaths(surfacesPaths);
           setSurfacesOnRoute(surfacesDistances);
           setBicycleClassesPaths(bicycleClassPaths);
-          setBicycleClassesOnRoute(bicycleClassDistances);
         });
     }, 1000),
     []
@@ -532,7 +514,6 @@ function App() {
       setUserPosition(null);
       setSurfacesOnRoute(null);
       setIlluminatedOnRoute(null);
-      setBicycleClassesOnRoute(null);
       setBicycleClassesPaths(null);
       if (startPosition && endPosition) {
         fetch(
@@ -679,7 +660,7 @@ function App() {
 
   if (startPosition != null && endPosition != null && surfacesOnRoute != null) {
     surfacesElement =
-      <div style={{ display: 'flex', height: '30px', border: '2px solid #666', borderRadius: 4 }}>{
+      <div style={{ display: 'flex', minHeight: '30px', border: '2px solid #666', borderRadius: 4 }}>{
         [...surfacesOnRoute.entries()]
           .sort((a, b) => a[1] - b[1])
           .map(([k, v]) => <div key={k} onTouchStart={() => setHightlightSurface(k)} onTouchEnd={() => setHightlightSurface(null)} onMouseOver={() => setHightlightSurface(k)} onMouseOut={() => setHightlightSurface(null)} id={k} style={{ background: SURFACE_COLORS.get(k) || 'gray', flexGrow: v / ([...surfacesOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}></div>)
@@ -701,7 +682,7 @@ function App() {
 
   if (startPosition != null && endPosition != null && illuminatedOnRoute != null) {
     illuminatedElement =
-      <div style={{ display: 'flex', height: '30px', marginTop: 0, border: '2px solid #666', borderRadius: 4 }}>{
+      <div style={{ display: 'flex', minHeight: '30px', marginTop: 0, border: '2px solid #666', borderRadius: 4 }}>{
         [...illuminatedOnRoute.entries()]
           .sort((a, b) => a[1] - b[1])
           .map(([k, v]) => <div key={k} onTouchStart={() => setHightlightLit(k)} onTouchEnd={() => setHightlightLit(null)} onMouseOver={() => setHightlightLit(k)} onMouseOut={() => setHightlightLit(null)} id={k} style={{ background: LIT_COLORS.get(k) || 'gray', flexGrow: v / ([...illuminatedOnRoute.values()].reduce((p, v) => p + v, 0)) * 100 }}></div>)
@@ -753,8 +734,8 @@ function App() {
       })
     );
     return <React.Fragment>
-        <Polyline key={`route-${hightlightLit !== null || hightlightSurface !== null}`} weight={hightlightLit !== null || hightlightSurface !== null ? 3 : 6} positions={coords} color="black"></Polyline>
-        {bicycleClassesPaths == null || hightlightLit || hightlightSurface ? [] : [...bicycleClassesPaths.entries()]
+        <Polyline key={`route-${hightlightLit !== null || hightlightSurface !== null}`} weight={hightlightLit !== null || hightlightSurface !== null ? 3 : 8} positions={coords} color="black"></Polyline>
+        {bicycleClassesPaths == null ? <Polyline dashArray="2 4" color={RADLNAVI_BLUE} weight={2} positions={coords}></Polyline> : hightlightLit || hightlightSurface ? [] : [...bicycleClassesPaths.entries()]
       .map(([key, entry]) => entry.map(
         (bicycleClassPath, i) =>
           <Polyline key={`${key}-${i}`} color={BICYCLE_CLASSES_COLORS.get(key) || 'gray'} weight={3} positions={
@@ -912,7 +893,7 @@ function App() {
             <Typography style={{ fontSize: "0.7rem" }}>Sichere Fahrradnavigation für München und Umgebung</Typography>
             <Link style={{ fontSize: "0.7rem", cursor: "pointer" }} onClick={() => setShowAbout(true)}>Wie macht RadlNavi meine Fahrradfahrt sicherer?</Link>
           </div>
-          <div className="routing" style={{ flex: 1 }}>
+          <div className="routing" style={{ flex: 1, overflowY: 'auto' }}>
             <div style={{ display: 'flex', marginTop: 20 }}>
               <Autocomplete
                 id="start"
@@ -1154,14 +1135,6 @@ function App() {
               lineToRoute
             }></Polyline>
           }
-          {geoJsonData != null && showMunichways ? <GeoJSON ref={geoJsonLayerRef} data={geoJsonData as any} onEachFeature={(feature, layer: any) => {
-            var layerType = layer.feature.geometry.type;
-            if (layerType == 'LineString') {
-              if (typeof layer.setStyle == "function") {
-                layer.setStyle({ weight: 5, color: feature.properties.color, opacity: 0.5 });
-              }
-            }
-          }} /> : null}
         </LeafletMap>
       </div>
 
