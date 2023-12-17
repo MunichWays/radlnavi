@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useEffect, useCallback, useRef, MutableRefObject } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import "./App.css";
 import {
   MapContainer as LeafletMap,
@@ -26,11 +26,11 @@ const togpx = require("togpx");
 const RADLNAVI_BLUE = "#00BCF2";
 
 const SOUTH_WEST = {
-  lng: 10.334022,
-  lat: 47.286771,
+  lng: 8.5,
+  lat: 47,
 };
 
-const NORTH_EAST = { lat: 49.096737, lng: 13.926551 };
+const NORTH_EAST = { lat: 51, lng: 14 };
 
 const MAP_BOUNDS = new LatLngBounds(SOUTH_WEST, NORTH_EAST);
 
@@ -890,7 +890,7 @@ function App() {
 
           <img src="logo.svg" width="320" height="80" alt="RadlNavi Logo" style={{ margin: "10px auto" }}></img>
           <div style={{ margin: "-7px 5px 7px 5px", display: "flex", alignItems: "center", flexDirection: "column" }}>
-            <Typography style={{ fontSize: "0.7rem" }}>Sichere Fahrradnavigation für München und Umgebung</Typography>
+            <Typography style={{ fontSize: "0.7rem" }}>Sichere Fahrradnavigation für München und Bayern</Typography>
             <Link style={{ fontSize: "0.7rem", cursor: "pointer" }} onClick={() => setShowAbout(true)}>Wie macht RadlNavi meine Fahrradfahrt sicherer?</Link>
           </div>
           <div className="routing" style={{ flex: 1, overflowY: 'auto' }}>

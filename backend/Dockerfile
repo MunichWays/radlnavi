@@ -1,6 +1,6 @@
 FROM alpine:latest AS map
 
-RUN wget https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf -O /opt/map.osm.pbf
+RUN wget https://download.geofabrik.de/europe/germany/bayern-latest.osm.pbf -O /opt/map.osm.pbf
 
 FROM osrm/osrm-backend:v5.25.0 AS builder
 
