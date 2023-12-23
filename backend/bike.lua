@@ -15,7 +15,7 @@ function setup()
   return {
     properties = {
       u_turn_penalty                = 20,
-      traffic_light_penalty         = 4,
+      traffic_light_penalty         = 6,
       weight_name                   = 'cyclability',
       --weight_name                   = 'duration',
       process_call_tagless_node     = false,
