@@ -696,7 +696,7 @@ function process_way(profile, way, result)
       class_bicycle_penalty = 0
     end
     if class_bicycle == "-2" then
-      class_bicycle_penalty = 0.4
+      class_bicycle_penalty = 0.3
     end
     if class_bicycle == "-1" then
       class_bicycle_penalty = 0.6
