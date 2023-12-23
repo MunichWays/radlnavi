@@ -7552,6 +7552,11 @@ point-geometry@0.0.0:
   resolved "https://registry.npmjs.org/point-geometry/-/point-geometry-0.0.0.tgz"
   integrity sha512-tXK8bY2l3/CPkyO7+UbOWbVjCpKoYY4t6uY3AYYy4Bagd4Z942gLeQOgtHICwBwgPf8dI6fw4VqKwzSNgvlw4A==
 
+polytogeojson@^0.0.1:
+  version "0.0.1"
+  resolved "https://registry.npmjs.org/polytogeojson/-/polytogeojson-0.0.1.tgz"
+  integrity sha512-57F/eJcdpFWLeskokiGvCw+kplw4bnIFwtRiZQ4KZlvHFaE3ygbMuLmDr/T2rP4e+BDu0OniyCJECT6eJ81EiQ==
+
 portfinder@^1.0.13:
   version "1.0.32"
   resolved "https://registry.npmjs.org/portfinder/-/portfinder-1.0.32.tgz"

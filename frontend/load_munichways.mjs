@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import osmRead from 'osm-read';
+import * as poly2geojson from 'polytogeojson';
 
 function translateClassBicycle(clBicycle) {
     switch (clBicycle) {
@@ -19,6 +20,10 @@ function translateClassBicycle(clBicycle) {
             return "blue";
     }
 }
+
+const mapPoly = fs.readFileSync("./map.poly")
+const polyGeoJson = poly2geojson.default(mapPoly.toString("utf-8"));
+fs.writeFileSync("./public/region.json", JSON.stringify(polyGeoJson));
 
 // extracting relevant ways
 console.log("PASS 1: extracting bicycle ways ...")
@@ -77,4 +82,5 @@ const geoJson = {
 }
 console.log("writing output file public/munichways.json ...")
 fs.writeFileSync("./public/munichways.json", JSON.stringify(geoJson));
+
 console.log("done!")

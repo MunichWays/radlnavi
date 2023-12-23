@@ -7,7 +7,8 @@ import {
   Marker,
   Popup,
   Polyline,
-  Tooltip as LeafletTooltip
+  Tooltip as LeafletTooltip,
+  Polygon
 } from "react-leaflet";
 import { LatLngBounds, LeafletEvent, LeafletMouseEvent, Map as LMap, Icon as LeafletIcon } from "leaflet";
 import { throttle, debounce } from "lodash";
@@ -308,6 +309,54 @@ function App() {
   const [wakeLock, setWakeLock] = useState<WakeLockSentinel | null>(null);
   const [nextNavigationStep, setNextNavigationStep] = useState<NavigationStep>(null);
   const [lineToRoute, setLineToRoute] = useState<LineGeo | null>(null);
+  const [regionShape, setRegionShape] = useState<Polygon | null>(null);
+
+  const loadRegionShape = async () => {
+    const regionGeoJson = await fetch("/region.json");
+    const regionPoly = (await regionGeoJson.json()).features[0];
+    console.log(regionPoly);
+    const regionCoords = regionPoly.geometry.coordinates[0];
+    console.log(regionCoords);
+    regionCoords.unshift([
+      0,
+      90
+    ],
+    [
+      180,
+      90
+    ],
+    [
+      180,
+      -90
+    ],
+    [
+      0,
+      -90
+    ],
+    [
+      -180,
+      -90
+    ],
+    [
+      -180,
+      0
+    ],
+    [
+      -180,
+      90
+    ],
+    [
+      0,
+      90
+    ]);
+    const regionCoordsFixed = regionCoords.map(([x,y]) => [y,x]);
+    console.log(regionCoordsFixed);
+    setRegionShape(regionCoordsFixed);
+  };
+
+  useEffect(() => {
+    loadRegionShape();
+  }, [])
 
   useEffect(() => {
     if (map) {
@@ -890,7 +939,7 @@ function App() {
 
           <img src="logo.svg" width="320" height="80" alt="RadlNavi Logo" style={{ margin: "10px auto" }}></img>
           <div style={{ margin: "-7px 5px 7px 5px", display: "flex", alignItems: "center", flexDirection: "column" }}>
-            <Typography style={{ fontSize: "0.7rem" }}>Sichere Fahrradnavigation für München und Bayern</Typography>
+            <Typography style={{ fontSize: "0.7rem" }}>Sichere Fahrradnavigation für München und Umgebung</Typography>
             <Link style={{ fontSize: "0.7rem", cursor: "pointer" }} onClick={() => setShowAbout(true)}>Wie macht RadlNavi meine Fahrradfahrt sicherer?</Link>
           </div>
           <div className="routing" style={{ flex: 1, overflowY: 'auto' }}>
@@ -1135,6 +1184,7 @@ function App() {
               lineToRoute
             }></Polyline>
           }
+          {regionShape == null ? null : <Polygon fillColor="black" weight={0} fillOpacity={0.5} positions={regionShape}></Polygon>}
         </LeafletMap>
       </div>
 
