@@ -29,7 +29,7 @@ function setup()
     default_speed             = default_speed,
     walking_speed             = walking_speed,
     oneway_handling           = true,
-    turn_penalty              = 12,
+    turn_penalty              = 6,
     turn_bias                 = 1.4,
     use_public_transport      = false,
 
@@ -689,17 +689,17 @@ function process_way(profile, way, result)
 
   -- munichways ratings
   local class_bicycle = way:get_value_by_key("class:bicycle")
-  local class_bicycle_penalty = 0.7
+  local class_bicycle_penalty = 0.55
 
   if class_bicycle then
     if class_bicycle == "-3" then
       class_bicycle_penalty = 0
     end
     if class_bicycle == "-2" then
-      class_bicycle_penalty = 0.3
+      class_bicycle_penalty = 0.25
     end
     if class_bicycle == "-1" then
-      class_bicycle_penalty = 0.6
+      class_bicycle_penalty = 0.45
     end
     if class_bicycle == "1" then
       class_bicycle_penalty = 0.8
@@ -754,7 +754,7 @@ function process_turn(profile, turn)
      turn.duration = turn.duration + profile.properties.traffic_light_penalty
   end
   if profile.properties.weight_name == 'cyclability' then
-    turn.weight = turn.duration
+    turn.weight = turn.duration * 2
   end
   if turn.source_mode == mode.cycling and turn.target_mode ~= mode.cycling then
     turn.weight = turn.weight + profile.properties.mode_change_penalty
