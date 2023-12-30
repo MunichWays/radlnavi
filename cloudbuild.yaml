@@ -1,19 +1,19 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA', '-f', 'backend/Dockerfile', 'backend']
+  args: ['build', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA', '-f', 'backend/Dockerfile', 'backend']
   id: build-backend
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'VERSION=$TAG_NAME', '-t', 'gcr.io/$PROJECT_ID/frontend:$COMMIT_SHA', '-f', 'frontend/Dockerfile', 'frontend']
+  args: ['build', '--build-arg', 'VERSION=$TAG_NAME', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA', '-f', 'frontend/Dockerfile', 'frontend']
   waitFor: ['-']
   id: build-frontend
 - name: 'gcr.io/cloud-builders/docker'
   id: push-backend
-  args: ['push', 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA']
+  args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA']
   waitFor:
   - build-backend
 - name: 'gcr.io/cloud-builders/docker'
   id: push-frontend
-  args: ['push', 'gcr.io/$PROJECT_ID/frontend:$COMMIT_SHA']
+  args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA']
   waitFor:
   - build-frontend
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -26,7 +26,7 @@ steps:
   - 'deploy'
   - 'backend'
   - '--image'
-  - 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA'
+  - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA'
   - '--region'
   - 'europe-north1'
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -39,9 +39,9 @@ steps:
   - 'deploy'
   - 'frontend'
   - '--image'
-  - 'gcr.io/$PROJECT_ID/frontend:$COMMIT_SHA'
+  - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA'
   - '--region'
   - 'europe-north1'
 images:
-- 'gcr.io/$PROJECT_ID/backend:$COMMIT_SHA'
-- 'gcr.io/$PROJECT_ID/frontend:$COMMIT_SHA'
+- 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA'
+- 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA'
