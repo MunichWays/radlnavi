@@ -263,6 +263,11 @@ function process_node(profile, node, result)
   if tag and "traffic_signals" == tag then
     result.traffic_lights = true
   end
+
+  local railway = node:get_value_by_key("railway")
+  if railway and railway == "level_crossing" then
+    result.traffic_lights = true
+  end
 end
 
 function handle_bicycle_tags(profile,way,result,data)
