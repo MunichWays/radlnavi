@@ -1113,6 +1113,8 @@ function App() {
           className="map"
           center={[48.134991, 11.584225]}
           zoom={13}
+          zoomSnap={0.5}
+          zoomDelta={0.5}
           zoomAnimation={true}
           zoomControl={false}
           maxBounds={MAP_BOUNDS}
