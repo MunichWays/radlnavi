@@ -1,3 +1,7 @@
-backend/geo
+.venv
+__pycache__
+
+routing/geo
 frontend/build
 frontend/public/layers
+backend/geo

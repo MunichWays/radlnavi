@@ -1,0 +1,41 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: radlnavi-overpass
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containers:
+      - image: wiktorn/overpass-api
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            memory: 2Gi
+            cpu: "1"
+        env:
+        - name: OVERPASS_META
+          value: "yes"
+        - name: OVERPASS_MODE
+          value: clone
+        - name: OVERPASS_PLANET_URL
+          value: http://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.bz2
+        - name: OVERPASS_DIFF_URL
+          value: http://download.geofabrik.de/europe/germany/bayern/oberbayern-updates
+        - name: OVERPASS_UPDATE_SLEEP
+          value: "3600"
+        volumeMounts:
+        - name: db
+          mountPath: /db
+      volumes:
+      - name: db
+        csi:
+          driver: gcsfuse.run.googleapis.com
+          readOnly: false
+          volumeAttributes:
+            bucketName: radlnavi-overpass
