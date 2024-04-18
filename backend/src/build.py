@@ -1,4 +1,4 @@
-from backend.src.geo_store import build_geo_store
+from geo_store import build_geo_store
 
 if __name__ == "__main__":
     print("building geostore ...")
