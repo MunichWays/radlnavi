@@ -1,5 +1,9 @@
 steps:
 - name: 'python'
+  entrypoint: 'python'
+  args: ['-m', 'pip', 'install', 'poetry']
+  id: install-poetry
+- name: 'python'
   entrypoint: 'poetry'
   args: ['install']
   id: install-backend-deps
@@ -11,49 +15,49 @@ steps:
   entrypoint: gcloud
   args: ['cp', 'backend/geo/geo.db', 'radlnavi-overpass']
   id: upload-geo-store
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA', '-f', 'backend/Dockerfile', 'backend']
-  id: build-backend
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'VERSION=$TAG_NAME', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA', '-f', 'frontend/Dockerfile', 'frontend']
-  waitFor: ['-']
-  id: build-frontend
-- name: 'gcr.io/cloud-builders/docker'
-  id: push-backend
-  args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA']
-  waitFor:
-  - build-backend
-- name: 'gcr.io/cloud-builders/docker'
-  id: push-frontend
-  args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA']
-  waitFor:
-  - build-frontend
-- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  entrypoint: gcloud
-  id: deploy-backend
-  waitFor:
-  - push-backend
-  args:
-  - 'run'
-  - 'deploy'
-  - 'backend'
-  - '--image'
-  - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA'
-  - '--region'
-  - 'europe-north1'
-- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  entrypoint: gcloud
-  waitFor:
-  - push-frontend
-  - deploy-backend
-  args:
-  - 'run'
-  - 'deploy'
-  - 'frontend'
-  - '--image'
-  - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA'
-  - '--region'
-  - 'europe-north1'
-images:
-- 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA'
-- 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA'
+# - name: 'gcr.io/cloud-builders/docker'
+#   args: ['build', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA', '-f', 'backend/Dockerfile', 'backend']
+#   id: build-backend
+# - name: 'gcr.io/cloud-builders/docker'
+#   args: ['build', '--build-arg', 'VERSION=$TAG_NAME', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA', '-f', 'frontend/Dockerfile', 'frontend']
+#   waitFor: ['-']
+#   id: build-frontend
+# - name: 'gcr.io/cloud-builders/docker'
+#   id: push-backend
+#   args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA']
+#   waitFor:
+#   - build-backend
+# - name: 'gcr.io/cloud-builders/docker'
+#   id: push-frontend
+#   args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA']
+#   waitFor:
+#   - build-frontend
+# - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+#   entrypoint: gcloud
+#   id: deploy-backend
+#   waitFor:
+#   - push-backend
+#   args:
+#   - 'run'
+#   - 'deploy'
+#   - 'backend'
+#   - '--image'
+#   - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA'
+#   - '--region'
+#   - 'europe-north1'
+# - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+#   entrypoint: gcloud
+#   waitFor:
+#   - push-frontend
+#   - deploy-backend
+#   args:
+#   - 'run'
+#   - 'deploy'
+#   - 'frontend'
+#   - '--image'
+#   - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA'
+#   - '--region'
+#   - 'europe-north1'
+# images:
+# - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA'
+# - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA'
