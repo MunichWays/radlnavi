@@ -14,7 +14,7 @@ steps:
   id: build-geo-store
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
-  args: ['storage', 'cp', '/geo-store/geo.db', 'radlnavi-overpass']
+  args: ['storage', 'cp', '/geo-store/geo.db', 'gs://radlnavi-overpass']
   volumes:
   - name: 'geo-store'
     path: '/geo-store'
