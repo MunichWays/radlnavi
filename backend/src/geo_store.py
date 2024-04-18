@@ -1,9 +1,7 @@
-from dataclasses import dataclass
 from json import dumps
 import sqlite3
 import osmium
 import os
-import shutil
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -11,14 +9,11 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 def build_geo_store():
     print("initializing geo store ...")
     geo_folder = os.path.join(script_dir, "../geo")
-    geo_store_path = os.path.join(geo_folder, "new_geo.db")
+    geo_store_path = os.path.join(geo_folder, "geo.db")
     pbf_path = os.path.join(geo_folder, "oberbayern-latest.osm.pbf")
     db_con = sqlite3.connect(geo_store_path)
     __initialize_geo_store(db_con, pbf_path)
     db_con.close()
-    old_geo_store = os.path.join(geo_folder, "geo.db")
-    os.remove(old_geo_store)
-    shutil.copyfile(geo_store_path, old_geo_store)
 
 
 def get_geo_store(create: bool = False) -> sqlite3.Connection:
