@@ -2,6 +2,7 @@ steps:
 - name: 'python'
   script: |
     python -m pip install poetry
+    cd backend
     poetry install
     poetry run python backend/src/build.py
     mv backend/geo/geo.db /geo-store/geo.db
