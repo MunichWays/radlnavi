@@ -4,6 +4,7 @@ steps:
     python -m pip install poetry
     cd backend
     poetry install
+    mkdir geo
     poetry run python src/build.py
     mv geo/geo.db /geo-store/geo.db
   volumes:
