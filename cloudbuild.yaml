@@ -5,6 +5,7 @@ steps:
     cd backend
     poetry install
     mkdir geo
+    wget https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf -O ./geo/oberbayern-latest.osm.pbf
     poetry run python src/build.py
     mv geo/geo.db /geo-store/geo.db
   volumes:
