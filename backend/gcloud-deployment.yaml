@@ -1,0 +1,38 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: radlnavi-routing
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containers:
+      - image: europe-north1-docker.pkg.dev/radlnavi/images/test@sha256:d63a8c7a8bbcfabd8a59cb43d670ecdcac270fb43798904c2a5593a2124320ce
+        ports:
+        - containerPort: 8000
+        envVars:
+        - name: OSRM_BACKEND_URL
+          value: localhost:5000
+        resources:
+          limits:
+            memory: 3Gi
+            cpu: "1"
+        volumeMounts:
+        - name: db
+          mountPath: /opt/app/geo
+      - image: europe-north1-docker.pkg.dev/radlnavi/images/backend:f59037e145b55ef5de568e5d0d25d988bce25c0d
+        resources:
+          limits:
+            memory: 2Gi
+            cpu: "1"
+      volumes:
+      - name: db
+        csi:
+          driver: gcsfuse.run.googleapis.com
+          readOnly: false
+          volumeAttributes:
+            bucketName: radlnavi-overpass

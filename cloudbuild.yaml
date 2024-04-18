@@ -1,4 +1,16 @@
 steps:
+- name: 'python'
+  entrypoint: 'poetry'
+  args: ['install']
+  id: install-backend-deps
+- name: 'python'
+  entrypoint: 'poetry'
+  args: ['run', 'python', 'backend/src/build.py']
+  id: build-geo-store
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  args: ['cp', 'backend/geo/geo.db', 'radlnavi-overpass']
+  id: upload-geo-store
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA', '-f', 'backend/Dockerfile', 'backend']
   id: build-backend
