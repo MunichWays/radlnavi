@@ -16,22 +16,6 @@ def build_geo_store():
     db_con.close()
 
 
-def get_geo_store(create: bool = False) -> sqlite3.Connection:
-    geo_folder = os.path.join(script_dir, "../geo")
-    geo_store_path = os.path.join(geo_folder, "geo.db")
-    geo_store_exists = os.path.exists(geo_store_path)
-    db_con = sqlite3.connect(geo_store_path)
-    if not geo_store_exists:
-        raise Exception(f"geo store '{geo_store_path}' does not exist!")
-    else:
-        print("store exists, loading into memory ...")
-        mem_db_con = sqlite3.connect(":memory:")
-        db_con.backup(mem_db_con)
-        print("done.")
-    db_con.close()
-    return mem_db_con
-
-
 def __initialize_geo_store(db_con: sqlite3.Connection, pbf_path: str) -> None:
     print("creating nodes table")
     db_con.execute(
@@ -126,3 +110,7 @@ class GeoStoreInitHandler(osmium.SimpleHandler):
         self.__nodes_batch.clear()
         self.__ways_batch.clear()
         self.__node_to_way_batch.clear()
+
+if __name__ == "__main__":
+    print("building geostore ...")
+    build_geo_store()

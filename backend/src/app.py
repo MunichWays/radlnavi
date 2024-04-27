@@ -6,14 +6,54 @@ from collections import defaultdict
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from json import loads
-from typing import Optional
+from typing import List, Optional
+
+from pydantic import BaseModel
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from geopy import distance
 from requests import request
 
-from geo_store import get_geo_store
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+@dataclass
+class Node(object):
+    id: int
+    lat: float
+    lon: float
+    tags: dict[str, str]
+
+    @property
+    def location(self) -> tuple[float, float]:
+        return (self.lat, self.lon)
+
+    @property
+    def coord(self) -> tuple[float, float]:
+        return (self.lon, self.lat)
+
+
+@dataclass
+class Way(object):
+    id: int
+    nodes: list[int]
+    tags: dict[str, str]
+
+def get_geo_store() -> sqlite3.Connection:
+    geo_folder = os.path.join(script_dir, "../geo")
+    geo_store_path = os.path.join(geo_folder, "geo.db")
+    geo_store_exists = os.path.exists(geo_store_path)
+    if not geo_store_exists:
+        raise Exception(f"geo store '{geo_store_path}' does not exist!")
+    else:
+        # print("loading geo db into memory")
+        db_con = sqlite3.connect(geo_store_path)
+        # db_mem_con = sqlite3.connect(":memory:")
+        # db_con.backup(db_mem_con)
+        # db_con.close()
+        # print("done.")
+        # return db_mem_con
+        return db_con
 
 geo_store: Optional[sqlite3.Connection] = None
 OSRM_BACKEND_URL = os.environ["OSRM_BACKEND_URL"]
@@ -42,28 +82,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@dataclass
-class Node(object):
-    id: int
-    lat: float
-    lon: float
-    tags: dict[str, str]
-
-    @property
-    def location(self) -> tuple[float, float]:
-        return (self.lat, self.lon)
-
-    @property
-    def coord(self) -> tuple[float, float]:
-        return (self.lon, self.lat)
-
-
-@dataclass
-class Way(object):
-    id: int
-    nodes: list[int]
-    tags: dict[str, str]
 
 
 @dataclass
@@ -117,28 +135,16 @@ def retrieve_ways_by_node_ids(
 
     return way_by_id
 
+class NodeList(BaseModel):
+    node_ids: List[int]
 
-@app.get("/route")
-async def route(
-    start_lat: float, start_lon: float, target_lat: float, target_lon: float
+@app.post("/tag_distribution")
+async def tag_distribution(
+    node_list: NodeList
 ):
     assert geo_store is not None
 
-    print("request start")
-    response = request(
-        "GET",
-        f"http://{OSRM_BACKEND_URL}:8080/route/v1/bike/{start_lon},{start_lat}%3b{target_lon},{target_lat}%3Foverview=full&alternatives=true&steps=true&geometries=geojson&annotations=true",
-    )
-
-    if response.status_code != 200:
-        return {"ok": False}
-
-    print("response start")
-    osrm_response = response.json()
-    print("response end")
-
-    route_coords = osrm_response["routes"][0]["geometry"]["coordinates"]
-    node_ids = osrm_response["routes"][0]["legs"][0]["annotation"]["nodes"]
+    node_ids = node_list.node_ids
     print("retrieve nodes by id start")
     nodes_by_id = retrieve_nodes_by_id(geo_store, node_ids)
     print("retrieve nodes by id end")
@@ -147,10 +153,10 @@ async def route(
     route_nodes = list(filter(None, map(lambda id: nodes_by_id.get(id), node_ids)))
 
     # fix start and end of route
-    route_nodes[0].lon = route_coords[0][0]
-    route_nodes[0].lat = route_coords[0][1]
-    route_nodes[-1].lon = route_coords[-1][0]
-    route_nodes[-1].lat = route_coords[-1][1]
+    # route_nodes[0].lon = route_coords[0][0]
+    # route_nodes[0].lat = route_coords[0][1]
+    # route_nodes[-1].lon = route_coords[-1][0]
+    # route_nodes[-1].lat = route_coords[-1][1]
 
     # retrieve route information
     route_ways: dict[int, list[Node]] = defaultdict(list)
@@ -182,7 +188,31 @@ async def route(
             for node_a, node_b in zip(nodes, nodes[1:]):
                 tag_distribution[tag][way_tag_value].distance += distance.distance(
                     node_a.location, node_b.location
-                ).meters                
+                ).meters
+
+    return {
+        "ok": True,
+        "tag_distribution": tag_distribution,
+    }
+
+
+@app.get("/route")
+async def route(
+    start_lat: float, start_lon: float, target_lat: float, target_lon: float
+):
+    print("request start")
+    response = request(
+        "GET",
+        f"{OSRM_BACKEND_URL}/route/v1/bike/{start_lon},{start_lat}%3b{target_lon},{target_lat}%3Foverview=full&alternatives=true&steps=true&geometries=geojson&annotations=true",
+        timeout=30,
+    )
+
+    if response.status_code != 200:
+        return {"ok": False}
+
+    print("response start")
+    osrm_response = response.json()
+    print("response end")
 
     return {
         "ok": True,
@@ -192,6 +222,5 @@ async def route(
             "geometry": osrm_response["routes"][0]["geometry"],
             "duration": osrm_response["routes"][0]["duration"],
             "distance": osrm_response["routes"][0]["distance"],
-            "tag_distribution": tag_distribution,
         },
     }

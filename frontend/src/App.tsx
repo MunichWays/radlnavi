@@ -457,36 +457,47 @@ function App() {
     }
   }, 500);
 
-  function deg2rad(deg: number) {
-    return deg * (Math.PI / 180)
+  const analyzeRoute = (nodeIds) => {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/tag_distribution`, { method: 'POST', headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      node_ids: nodeIds,
+    }) }).then(response => response.json()).then(result => {
+      const {tag_distribution} = result;
+      setIlluminatedOnRoute(new Map(Object.entries(tag_distribution.lit).map(([key, value]) => [key, value.distance])));
+      setIlluminatedPaths(new Map(Object.entries(tag_distribution.lit).map(([key, value]) => [key, Object.values(value.ways).map(way => way.geometry.coordinates)])));
+      setSurfacesOnRoute(new Map(Object.entries(tag_distribution.surface).map(([key, value]) => [key, value.distance])));
+      setSurfacePaths(new Map(Object.entries(tag_distribution.surface).map(([key, value]) => [key, Object.values(value.ways).map(way => way.geometry.coordinates)])));
+      setBicycleClassesPaths(new Map(Object.entries(tag_distribution['class:bicycle']).map(([key, value]) => [key, Object.values(value.ways).map(way => way.geometry.coordinates)])));
+    });
   }
 
   const calculateRoute = useCallback(
-    throttle((startPosition, endPosition) => {
+    debounce((startPosition, endPosition) => {
       setNavigationPath(null);
       setNextNavigationStep(null);
       setUserPosition(null);
+      setRoute(null);
+      setIlluminatedOnRoute(null);
+      setIlluminatedPaths(null);
+      setSurfacesOnRoute(null);
+      setSurfacePaths(null);
+      setBicycleClassesPaths(null);
+      setRouteMetadata(null);
+      console.log("calc route")
       if (startPosition && endPosition) {
         fetch(
           `${process.env.REACT_APP_BACKEND_URL}/route?start_lon=${startPosition.lon}&start_lat=${startPosition.lat}&target_lon=${endPosition.lon}&target_lat=${endPosition.lat}`
         )
           .then((response) => response.json())
           .then((results) => {
-            const tag_distribution = results.route.tag_distribution;
-            console.log(results);
             setRoute(results.route);
             setRouteMetadata({
               distance: results.route.distance as number,
               duration: results.route.duration as number,
             });
-            setIlluminatedOnRoute(new Map(Object.entries(tag_distribution.lit).map(([key, value]) => [key, value.distance])));
-            setIlluminatedPaths(new Map(Object.entries(tag_distribution.lit).map(([key, value]) => [key, Object.values(value.ways).map(way => way.geometry.coordinates)])));
-            setSurfacesOnRoute(new Map(Object.entries(tag_distribution.surface).map(([key, value]) => [key, value.distance])));
-            setSurfacePaths(new Map(Object.entries(tag_distribution.surface).map(([key, value]) => [key, Object.values(value.ways).map(way => way.geometry.coordinates)])));
-            setBicycleClassesPaths(new Map(Object.entries(tag_distribution['class:bicycle']).map(([key, value]) => [key, Object.values(value.ways).map(way => way.geometry.coordinates)])));
+            analyzeRoute(results.route.annotation.nodes);
           });
       }
-    }, 100),
+    }, 200, {trailing: true}),
     []
   );
 
