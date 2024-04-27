@@ -25,4 +25,6 @@ RUN wget https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.o
 
 COPY src/app.py /opt/app/src/app.py
 
-CMD [ "poetry", "run", "python", "-m", "uvicorn", "app:app", "--host=0.0.0.0" ]
+ENV PORT 8000
+
+CMD [ "poetry", "run", "python", "-m", "uvicorn", "app:app", "--host=0.0.0.0", "--port=${PORT}" ]
