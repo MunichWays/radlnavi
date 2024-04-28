@@ -54,9 +54,10 @@ OSRM_BACKEND_URL = os.environ["OSRM_BACKEND_URL"]
 
 origins = [
     "http://localhost",
-    "http://localhost:8080",
     "http://localhost:8000",
     "http://localhost:3000",
+    "https://www.radlnavi.de",
+    "https://radlnavi.de",
 ]
 
 @asynccontextmanager
