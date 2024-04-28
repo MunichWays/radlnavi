@@ -24,6 +24,8 @@ RUN wget https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.o
     rm ../geo/oberbayern-latest.osm.pbf && \
     rm geo_store.py
 
+RUN chmod -w ../geo/geo.db
+
 COPY src/app.py /opt/app/src/app.py
 
 ENV PORT 8000

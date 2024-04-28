@@ -46,13 +46,7 @@ def get_geo_store() -> sqlite3.Connection:
     if not geo_store_exists:
         raise Exception(f"geo store '{geo_store_path}' does not exist!")
     else:
-        # print("loading geo db into memory")
-        db_con = sqlite3.connect(geo_store_path)
-        # db_mem_con = sqlite3.connect(":memory:")
-        # db_con.backup(db_mem_con)
-        # db_con.close()
-        # print("done.")
-        # return db_mem_con
+        db_con = sqlite3.connect(f"file:{geo_store_path}?mode=ro&immutable=1&nolock=1", uri=True, isolation_level="EXCLUSIVE")
         return db_con
 
 geo_store: Optional[sqlite3.Connection] = None
