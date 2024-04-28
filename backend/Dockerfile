@@ -27,4 +27,4 @@ COPY src/app.py /opt/app/src/app.py
 
 ENV PORT 8000
 
-CMD [ "poetry", "run", "python", "-m", "uvicorn", "app:app", "--host=0.0.0.0", "--port=${PORT}" ]
+CMD poetry run python -m uvicorn app:app --host=0.0.0.0 --port=$PORT
