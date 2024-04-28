@@ -1,11 +1,11 @@
 steps:
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'OSRM_BACKEND_URL="$_ROUTING_URL"', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA', '-f', 'backend/Dockerfile', 'backend']
+  args: ['build', '--build-arg', 'OSRM_BACKEND_URL=$_ROUTING_URL', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA', '-f', 'backend/Dockerfile', 'backend']
   id: build-backend
 
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'BACKEND_URL="$_BACKEND_URL"', '--build-arg', 'VERSION=$TAG_NAME', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA', '-f', 'frontend/Dockerfile', 'frontend']
+  args: ['build', '--build-arg', 'BACKEND_URL=$_BACKEND_URL', '--build-arg', 'VERSION=$TAG_NAME', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA', '-f', 'frontend/Dockerfile', 'frontend']
   waitFor: ['-']
   id: build-frontend
 
