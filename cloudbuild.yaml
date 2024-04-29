@@ -1,21 +1,55 @@
 steps:
+
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA', '-f', 'backend/Dockerfile', 'backend']
+  args: ['build', '--build-arg', 'OSRM_BACKEND_URL=$_ROUTING_URL', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA', '-f', 'backend/Dockerfile', 'backend']
   id: build-backend
+
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--build-arg', 'VERSION=$TAG_NAME', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA', '-f', 'frontend/Dockerfile', 'frontend']
+  args: ['build', '--build-arg', 'BACKEND_URL=$_BACKEND_URL', '--build-arg', 'VERSION=$TAG_NAME', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA', '-f', 'frontend/Dockerfile', 'frontend']
   waitFor: ['-']
   id: build-frontend
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/routing:$COMMIT_SHA', '-f', 'routing/Dockerfile', 'routing']
+  waitFor: ['-']
+  id: build-routing
+
 - name: 'gcr.io/cloud-builders/docker'
   id: push-backend
   args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA']
   waitFor:
   - build-backend
+
 - name: 'gcr.io/cloud-builders/docker'
   id: push-frontend
   args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA']
   waitFor:
   - build-frontend
+
+- name: 'gcr.io/cloud-builders/docker'
+  id: push-routing
+  args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/routing:$COMMIT_SHA']
+  waitFor:
+  - build-routing
+
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  id: deploy-routing
+  waitFor:
+  - push-routing
+  args:
+  - 'run'
+  - 'deploy'
+  - 'routing'
+  - '--min-instances=1'
+  - '--max-instances=1'
+  - '--memory=2Gi'
+  - '--cpu=1'
+  - '--image'
+  - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/routing:$COMMIT_SHA'
+  - '--region'
+  - 'europe-north1'
+
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
   id: deploy-backend
@@ -25,23 +59,35 @@ steps:
   - 'run'
   - 'deploy'
   - 'backend'
+  - '--min-instances=0'
+  - '--max-instances=1'
+  - '--memory=512MiB'
+  - '--cpu=1'
   - '--image'
   - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA'
   - '--region'
   - 'europe-north1'
+
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
   entrypoint: gcloud
   waitFor:
   - push-frontend
   - deploy-backend
+  - deploy-routing
   args:
   - 'run'
   - 'deploy'
   - 'frontend'
+  - '--min-instances=0'
+  - '--max-instances=1'
+  - '--memory=128MiB'
+  - '--cpu=1'
   - '--image'
   - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA'
   - '--region'
   - 'europe-north1'
+
 images:
 - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/backend:$COMMIT_SHA'
 - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/frontend:$COMMIT_SHA'
+- 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/routing:$COMMIT_SHA'

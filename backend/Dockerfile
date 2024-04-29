@@ -1,21 +1,32 @@
-FROM alpine:latest AS map
+FROM python:3.12.2-bookworm
 
-ARG REGION="europe/germany/bayern/oberbayern"
+ARG OSRM_BACKEND_URL="https://routing.radlnavi.de"
+ENV OSRM_BACKEND_URL=${OSRM_BACKEND_URL}
 
-RUN wget "https://download.geofabrik.de/${REGION}-latest.osm.pbf" -O /opt/map.osm.pbf
+RUN apt-get clean && apt-get update && \
+    apt-get install -y libosmium-dev cmake
 
-FROM osrm/osrm-backend:v5.25.0 AS builder
+WORKDIR /opt/app
 
-COPY --from=map /opt/map.osm.pbf /data/map.osm.pbf
-COPY bike.lua /opt/bike.lua
-RUN osrm-extract -p /opt/bike.lua /data/map.osm.pbf
-RUN osrm-partition /data/map.osm.pbf
-RUN osrm-customize /data/map.osm.pbf
+COPY poetry.lock poetry.lock
+COPY poetry.toml poetry.toml
+COPY pyproject.toml pyproject.toml
+RUN pip install poetry
+RUN poetry install
 
-FROM osrm/osrm-backend:v5.25.0
+RUN mkdir geo
 
-COPY --from=builder /data /data
+COPY src/geo_store.py src/geo_store.py
 
-ENV PORT 8080
+WORKDIR /opt/app/src
+RUN wget https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf -O ../geo/oberbayern-latest.osm.pbf && \
+    poetry run python geo_store.py && \
+    chmod 0444 ../geo/geo.db && \
+    rm ../geo/oberbayern-latest.osm.pbf && \
+    rm geo_store.py
 
-CMD osrm-routed --algorithm mld --port $PORT /data/map.osrm
+COPY src/app.py /opt/app/src/app.py
+
+ENV PORT 8000
+
+CMD poetry run python -m uvicorn app:app --host=0.0.0.0 --port=$PORT

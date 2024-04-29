@@ -11,7 +11,7 @@ import {
   Polygon
 } from "react-leaflet";
 import { LatLngBounds, LeafletEvent, LeafletMouseEvent, Map as LMap, Icon as LeafletIcon } from "leaflet";
-import { throttle, debounce } from "lodash";
+import { throttle } from "lodash";
 import { TextField, IconButton, LinearProgress, Button, createTheme, ThemeProvider, Autocomplete, Tooltip, Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link, Typography, SwipeableDrawer, Fab } from "@mui/material";
 import { CenterFocusWeak, Directions, Download, FitScreen, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
 import lineSlice from "@turf/line-slice";
@@ -21,6 +21,19 @@ import lineSliceAlong from "@turf/line-slice-along";
 import RotatedMarker from './RotatedMarker';
 import textInstructions from 'osrm-text-instructions';
 import "leaflet.vectorgrid";
+
+const debounce = (fn, time) => {
+  let timer = null;
+  return function () {
+    if (timer != null) {
+      clearTimeout(timer);
+    }
+    timer = setTimeout(() => {
+      fn(...arguments);
+      timer = null;
+    }, time);
+  }
+};
 
 const togpx = require("togpx");
 
@@ -253,11 +266,18 @@ const userMarkerIcon = new LeafletIcon({
   iconAnchor: [24, 24],
 });
 
+L.DomEvent.fakeStop = function () {
+  return true;
+}
+
 const munichWaysLayer = L.vectorGrid.protobuf("/layers/munichways/{z}/{x}/{y}.pbf", {
   vectorTileLayerStyles: {
-    munichways: (prop) => ({color : prop.color})
+    IST_RadlVorrangNetz_MunichWays_V20: (prop) => ({ color: prop.color })
   },
+  interactive: true,
   rendererFactory: L.canvas.tile,
+}).on('click', function (e) {
+  console.log(e.layer.properties);
 });
 
 function App() {
@@ -321,35 +341,35 @@ function App() {
       0,
       90
     ],
-    [
-      180,
-      90
-    ],
-    [
-      180,
-      -90
-    ],
-    [
-      0,
-      -90
-    ],
-    [
-      -180,
-      -90
-    ],
-    [
-      -180,
-      0
-    ],
-    [
-      -180,
-      90
-    ],
-    [
-      0,
-      90
-    ]);
-    const regionCoordsFixed = regionCoords.map(([x,y]) => [y,x]);
+      [
+        180,
+        90
+      ],
+      [
+        180,
+        -90
+      ],
+      [
+        0,
+        -90
+      ],
+      [
+        -180,
+        -90
+      ],
+      [
+        -180,
+        0
+      ],
+      [
+        -180,
+        90
+      ],
+      [
+        0,
+        90
+      ]);
+    const regionCoordsFixed = regionCoords.map(([x, y]) => [y, x]);
     console.log(regionCoordsFixed);
     setRegionShape(regionCoordsFixed);
   };
@@ -411,10 +431,8 @@ function App() {
       }
 
       let upcomingStep = null;
-      const routeSteps = route.legs[0].steps;
       let travelled = distanceTravelled;
-      console.log("steps:", routeSteps);
-      for (const step of routeSteps) {
+      for (const step of route.steps) {
         if (travelled < 0) {
           upcomingStep = step;
           break;
@@ -452,136 +470,39 @@ function App() {
     }
   }, 500);
 
-  const calculateRouteSurface = useCallback(
-    debounce((results: any) => {
-      const nodes = results.routes[0].legs[0].annotation.nodes;
-      const litPaths = new Map();
-      const litDistances = new Map();
-      const surfacesPaths = new Map();
-      const surfacesDistances = new Map();
-      const bicycleClassPaths = new Map();
-      const bicycleClassDistances = new Map();
-
-      const queryData = `[out:json][timeout:25];node(id:${nodes.join(",")});way(bn);(._;>;);out;`;
-
-      fetch("https://overpass-api.de/api/interpreter", {
-        method: "POST",
-        headers: { "Content-Type": "form/multipart" },
-        body: `data=${encodeURIComponent(queryData)}`,
+  const analyzeRoute = (nodeIds) => {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/tag_distribution`, {
+      method: 'POST', headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        node_ids: nodeIds,
       })
-        .then((response) => response.json())
-        .then((answer) => {
-          if (results?.routes?.[0]?.geometry) {
-            const routeCoords = results.routes[0].geometry.coordinates;
-            const nodesById = Object.fromEntries(answer.elements.filter((e: any) => e.type === 'node').map((node: any) => [node.id, node]));
-            const waysById = Object.fromEntries(answer.elements.filter((e: any) => e.type === 'way').map((way: any) => [way.id, way]));
-
-            const routeNodes = nodes.map((node: any) => nodesById[node]);
-            const routeWays = new Map();
-
-            routeNodes[0].lat = routeCoords[0][1];
-            routeNodes[0].lon = routeCoords[0][0];
-            routeNodes[routeNodes.length - 1].lat = routeCoords.slice(-1)[0][1];
-            routeNodes[routeNodes.length - 1].lon = routeCoords.slice(-1)[0][0];
-
-            routeNodes
-              .map((node: any, index: int) => index > 0 ? [routeNodes[index - 1], node] : null)
-              .filter((pair) => pair !== null)
-              .forEach(([nodeA, nodeB]) => {
-                Object.values(waysById)
-                  .filter(way =>
-                    way.nodes.includes(nodeA.id) &&
-                    way.nodes.includes(nodeB.id) &&
-                    Math.abs(way.nodes.indexOf(nodeA.id) - way.nodes.indexOf(nodeB.id)) === 1
-                  )
-                  .map(way => routeWays.has(way.id) ? routeWays.get(way.id) : routeWays.set(way.id, []).get(way.id))
-                  .forEach(wayNodes => wayNodes.slice(-1)[0] === nodeA ? wayNodes.push(nodeB) : wayNodes.push(nodeA, nodeB))
-              });
-
-            const wayPaths = [...routeWays.entries()].map(([wayId, nodes]) => [waysById[wayId], nodes.map(node => [node.lon, node.lat])]);
-            const wayDistances = [...routeWays.entries()].map(([wayId, nodes]) => [waysById[wayId], length(lineString(nodes.map(node => [node.lon, node.lat])))]);
-
-            wayPaths
-              .map(([way, coords]) => [way?.tags?.['lit'] || 'unknown', coords])
-              .forEach(([lit, coords]) => litPaths.has(lit) ? litPaths.get(lit).push(coords) : litPaths.set(lit, [coords]));
-
-            wayDistances
-              .map(([way, distance]) => [way?.tags?.['lit'] || 'unknown', distance])
-              .forEach(([lit, distance]) => litDistances.has(lit) ? litDistances.set(lit, litDistances.get(lit) + distance) : litDistances.set(lit, distance));
-
-            wayPaths
-              .map(([way, coords]) => [way?.tags?.['surface'] || 'unknown', coords])
-              .forEach(([lit, coords]) => surfacesPaths.has(lit) ? surfacesPaths.get(lit).push(coords) : surfacesPaths.set(lit, [coords]));
-
-            wayDistances
-              .map(([way, distance]) => [way?.tags?.['surface'] || 'unknown', distance])
-              .forEach(([lit, distance]) => surfacesDistances.has(lit) ? surfacesDistances.set(lit, surfacesDistances.get(lit) + distance) : surfacesDistances.set(lit, distance));
-
-            wayPaths
-              .map(([way, coords]) => [way?.tags?.['class:bicycle'] || '0', coords])
-              .forEach(([lit, coords]) => bicycleClassPaths.has(lit) ? bicycleClassPaths.get(lit).push(coords) : bicycleClassPaths.set(lit, [coords]));
-
-            wayDistances
-              .map(([way, distance]) => [way?.tags?.['class:bicycle'] || '0', distance])
-              .forEach(([lit, distance]) => bicycleClassDistances.has(lit) ? bicycleClassDistances.set(lit, bicycleClassDistances.get(lit) + distance) : bicycleClassDistances.set(lit, distance));
-          }
-
-          setIlluminatedPaths(litPaths);
-          setIlluminatedOnRoute(litDistances);
-          setSurfacePaths(surfacesPaths);
-          setSurfacesOnRoute(surfacesDistances);
-          setBicycleClassesPaths(bicycleClassPaths);
-        });
-    }, 1000),
-    []
-  );
-
-  function getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    var R = 6371; // Radius of the earth in km
-    var dLat = deg2rad(lat2 - lat1);  // deg2rad below
-    var dLon = deg2rad(lon2 - lon1);
-    var a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2)
-      ;
-    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    var d = R * c; // Distance in km
-    return d;
-  }
-
-  function deg2rad(deg: number) {
-    return deg * (Math.PI / 180)
+    }).then(response => response.json()).then(result => {
+      const { tag_distribution } = result;
+      setIlluminatedOnRoute(() => new Map(Object.entries(tag_distribution.lit).map(([key, value]) => [key, value.distance])));
+      setIlluminatedPaths(() => new Map(Object.entries(tag_distribution.lit).map(([key, value]) => [key, Object.values(value.ways).map(way => way.geometry.coordinates)])));
+      setSurfacesOnRoute(() => new Map(Object.entries(tag_distribution.surface).map(([key, value]) => [key, value.distance])));
+      setSurfacePaths(() => new Map(Object.entries(tag_distribution.surface).map(([key, value]) => [key, Object.values(value.ways).map(way => way.geometry.coordinates)])));
+      setBicycleClassesPaths(() => new Map(Object.entries(tag_distribution['class:bicycle']).map(([key, value]) => [key, Object.values(value.ways).map(way => way.geometry.coordinates)])));
+    });
   }
 
   const calculateRoute = useCallback(
-    throttle((startPosition, endPosition) => {
-      setIlluminatedPaths(null);
-      setSurfacePaths(null);
-      setNavigationPath(null);
-      setNextNavigationStep(null);
-      setUserPosition(null);
-      setSurfacesOnRoute(null);
-      setIlluminatedOnRoute(null);
-      setBicycleClassesPaths(null);
+    debounce((startPosition, endPosition) => {
       if (startPosition && endPosition) {
         fetch(
-          `${process.env.REACT_APP_OSRM_BACKEND}/route/v1/bike/${startPosition.lon},${startPosition.lat}%3b${endPosition.lon},${endPosition.lat
-          }%3Foverview=full&alternatives=true&steps=true&geometries=geojson&annotations=true`
+          `${process.env.REACT_APP_BACKEND_URL}/route?start_lon=${startPosition.lon}&start_lat=${startPosition.lat}&target_lon=${endPosition.lon}&target_lat=${endPosition.lat}`
         )
           .then((response) => response.json())
           .then((results) => {
-            console.log(results);
-            setRoute(results.routes[0]);
-            setRouteMetadata({
-              distance: results.routes[0].distance as number,
-              duration: results.routes[0].duration as number,
-            });
-            calculateRouteSurface(results);
+            setRoute(() => results.route);
+            setRouteMetadata(() => ({
+              distance: results.route.distance as number,
+              duration: results.route.duration as number,
+            }));
+            analyzeRoute(results.route.annotation.nodes);
           });
       }
     }, 500),
-    [startPosition, endPosition]
+    []
   );
 
   const exportGpx = useCallback(() => {
@@ -698,7 +619,19 @@ function App() {
     }
   }, [map, closeContextMenu, openContextMenu]);
 
-  useEffect(() => calculateRoute(startPosition, endPosition), [
+  useEffect(() => {
+    setNavigationPath(() => null);
+    setNextNavigationStep(() => null);
+    setUserPosition(() => null);
+    setRoute(() => null);
+    setIlluminatedOnRoute(() => null);
+    setIlluminatedPaths(() => null);
+    setSurfacesOnRoute(() => null);
+    setSurfacePaths(() => null);
+    setBicycleClassesPaths(() => null);
+    setRouteMetadata(() => null);
+    calculateRoute(startPosition, endPosition)
+  }, [
     startPosition,
     endPosition,
   ]);
@@ -783,22 +716,22 @@ function App() {
       })
     );
     return <React.Fragment>
-        <Polyline key={`route-${hightlightLit !== null || hightlightSurface !== null}`} weight={hightlightLit !== null || hightlightSurface !== null ? 3 : 8} positions={coords} color="black"></Polyline>
-        {bicycleClassesPaths == null ? <Polyline dashArray="2 4" color={RADLNAVI_BLUE} weight={2} positions={coords}></Polyline> : hightlightLit || hightlightSurface ? [] : [...bicycleClassesPaths.entries()]
-      .map(([key, entry]) => entry.map(
-        (bicycleClassPath, i) =>
-          <Polyline key={`${key}-${i}`} color={BICYCLE_CLASSES_COLORS.get(key) || 'gray'} weight={3} positions={
-            bicycleClassPath.map(
-              (point) => ({ lat: point[1], lng: point[0] })
-            )
-          }>
+      <Polyline key={`route-${hightlightLit !== null || hightlightSurface !== null}`} weight={hightlightLit !== null || hightlightSurface !== null ? 3 : 8} positions={coords} color="black"></Polyline>
+      {bicycleClassesPaths == null ? <Polyline dashArray="2 4" color={RADLNAVI_BLUE} weight={2} positions={coords}></Polyline> : hightlightLit || hightlightSurface ? [] : [...bicycleClassesPaths.entries()]
+        .map(([key, entry]) => entry.map(
+          (bicycleClassPath, i) =>
+            <Polyline key={`${key}-${i}`} color={BICYCLE_CLASSES_COLORS.get(key) || 'gray'} weight={3} positions={
+              bicycleClassPath.map(
+                (point) => ({ lat: point[1], lng: point[0] })
+              )
+            }>
               <LeafletTooltip interactive={true} sticky={true} content={translateBicycleClass(key)}>
 
-        </LeafletTooltip>
-          </Polyline>
-      )
-      )}
-      </React.Fragment>
+              </LeafletTooltip>
+            </Polyline>
+        )
+        )}
+    </React.Fragment>
   };
 
   const drawIlluminated = () => {
@@ -813,16 +746,16 @@ function App() {
           }></Polyline>
       )
       ).concat([...illuminatedPaths.entries()]
-      .filter(([key, _]) => key === hightlightLit)
-      .map(([key, entry]) => entry.map(
-        (litPath, i) =>
-          <Polyline key={`${key}-${i}`} color={LIT_COLORS.get(key) || 'gray'} weight={4} positions={
-            litPath.map(
-              (point) => ({ lat: point[1], lng: point[0] })
-            )
-          }></Polyline>
-      )
-      ));
+        .filter(([key, _]) => key === hightlightLit)
+        .map(([key, entry]) => entry.map(
+          (litPath, i) =>
+            <Polyline key={`${key}-${i}`} color={LIT_COLORS.get(key) || 'gray'} weight={4} positions={
+              litPath.map(
+                (point) => ({ lat: point[1], lng: point[0] })
+              )
+            }></Polyline>
+        )
+        ));
   };
 
   const drawSurfaces = () => {
@@ -830,25 +763,25 @@ function App() {
       .filter(([key, _]) => key === hightlightSurface)
       .map(([key, entry]) => entry.map(
         (surfacePath, i) =>
-        <Polyline key={`${key}-${i}-backdrop`} color={"black"} weight={8} positions={
-          surfacePath.map(
-            (point) => ({ lat: point[1], lng: point[0] })
-          )
-        }></Polyline>
-      )
-      ).concat([...surfacePaths.entries()]
-      .filter(([key, _]) => key === hightlightSurface)
-      .map(([key, entry]) => entry.map(
-        (surfacePath, i) =>
-          <Polyline key={`${key}-${i}`} color={SURFACE_COLORS.get(key) || 'gray'} weight={4} positions={
+          <Polyline key={`${key}-${i}-backdrop`} color={"black"} weight={8} positions={
             surfacePath.map(
               (point) => ({ lat: point[1], lng: point[0] })
             )
           }></Polyline>
       )
-      ));
+      ).concat([...surfacePaths.entries()]
+        .filter(([key, _]) => key === hightlightSurface)
+        .map(([key, entry]) => entry.map(
+          (surfacePath, i) =>
+            <Polyline key={`${key}-${i}`} color={SURFACE_COLORS.get(key) || 'gray'} weight={4} positions={
+              surfacePath.map(
+                (point) => ({ lat: point[1], lng: point[0] })
+              )
+            }></Polyline>
+        )
+        ));
 
-      
+
   };
 
   const goToMenu = useCallback(() => {
@@ -1176,12 +1109,12 @@ function App() {
               navigationPath
             }></Polyline>
           }
-          {!isNavigating ||navigationPath == null || route == null || nextNavigationStep?.geometry == null ? null :
+          {!isNavigating || navigationPath == null || route == null || nextNavigationStep?.geometry == null ? null :
             <Polyline color="#008CB4" weight={8} positions={
               nextNavigationStep.geometry
             }></Polyline>
           }
-          {!isNavigating ||navigationPath == null || route == null || lineToRoute == null ? null :
+          {!isNavigating || navigationPath == null || route == null || lineToRoute == null ? null :
             <Polyline color="red" dashArray="7 7" weight={4} positions={
               lineToRoute
             }></Polyline>

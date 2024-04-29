@@ -3,7 +3,7 @@ FROM node:18.16-buster AS builder
 RUN git clone https://github.com/mapbox/tippecanoe.git
 RUN cd tippecanoe && make -j && make install && cd -
 
-ARG BACKEND_URL="https://routing.floschnell.de"
+ARG BACKEND_URL="https://backend.radlnavi.de"
 ARG VERSION="v1"
 ARG REGION="europe/germany/bayern/oberbayern"
 
@@ -23,7 +23,7 @@ RUN node load_munichways.mjs
 RUN mkdir ./public/layers
 RUN ./tippecanoe/tippecanoe --maximum-zoom=19 --no-tile-compression -e ./public/layers/munichways ./public/munichways.json
 
-RUN REACT_APP_OSRM_BACKEND="$BACKEND_URL" REACT_APP_VERSION="$VERSION" npm run build
+RUN REACT_APP_BACKEND_URL="$BACKEND_URL" REACT_APP_VERSION="$VERSION" npm run build
 
 FROM ubuntu/nginx
 
