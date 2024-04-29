@@ -270,7 +270,7 @@ L.DomEvent.fakeStop = function () {
   return true;
 }
 
-const munichWaysLayer = L.vectorGrid.protobuf("/layers/radlvorrangnetz/{z}/{x}/{y}.pbf", {
+const munichWaysLayer = L.vectorGrid.protobuf("/layers/munichways/{z}/{x}/{y}.pbf", {
   vectorTileLayerStyles: {
     IST_RadlVorrangNetz_MunichWays_V20: (prop) => ({ color: prop.color })
   },
