@@ -1,0 +1,33 @@
+steps:
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/routing:$COMMIT_SHA', '-f', 'routing/Dockerfile', 'routing']
+  waitFor: ['-']
+  id: build-routing
+
+- name: 'gcr.io/cloud-builders/docker'
+  id: push-routing
+  args: ['push', 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/routing:$COMMIT_SHA']
+  waitFor:
+  - build-routing
+
+- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  entrypoint: gcloud
+  id: deploy-routing
+  waitFor:
+  - push-routing
+  args:
+  - 'run'
+  - 'deploy'
+  - 'routing'
+  - '--min-instances=1'
+  - '--max-instances=1'
+  - '--memory=2Gi'
+  - '--cpu=1'
+  - '--image'
+  - 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/routing:$COMMIT_SHA'
+  - '--region'
+  - 'europe-north1'
+
+images:
+- 'europe-north1-docker.pkg.dev/$PROJECT_ID/images/routing:$COMMIT_SHA'

@@ -21,10 +21,9 @@ COPY src/geo_store.py src/geo_store.py
 WORKDIR /opt/app/src
 RUN wget https://download.geofabrik.de/europe/germany/bayern/oberbayern-latest.osm.pbf -O ../geo/oberbayern-latest.osm.pbf && \
     poetry run python geo_store.py && \
+    chmod 0444 ../geo/geo.db && \
     rm ../geo/oberbayern-latest.osm.pbf && \
     rm geo_store.py
-
-RUN chmod -w ../geo/geo.db
 
 COPY src/app.py /opt/app/src/app.py
 
