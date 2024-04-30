@@ -272,7 +272,7 @@ L.DomEvent.fakeStop = function () {
 
 const munichWaysLayer = L.vectorGrid.protobuf("/layers/munichways/{z}/{x}/{y}.pbf", {
   vectorTileLayerStyles: {
-    IST_RadlVorrangNetz_MunichWays_V20: (prop) => ({ color: prop.color })
+    munichways: (prop) => ({ color: prop.color })
   },
   interactive: true,
   rendererFactory: L.canvas.tile,
