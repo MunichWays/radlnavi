@@ -12,7 +12,7 @@ import {
 } from "react-leaflet";
 import { LatLngBounds, LeafletEvent, LeafletMouseEvent, Map as LMap, Icon as LeafletIcon } from "leaflet";
 import { throttle } from "lodash";
-import { TextField, IconButton, LinearProgress, Button, createTheme, ThemeProvider, Autocomplete, Tooltip, Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link, Typography, SwipeableDrawer, Fab } from "@mui/material";
+import { TextField, IconButton, LinearProgress, Button, createTheme, ThemeProvider, Autocomplete, Tooltip, Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link, Typography, Drawer, Fab } from "@mui/material";
 import { CenterFocusWeak, Directions, Download, FitScreen, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
 import lineSlice from "@turf/line-slice";
 import { point, lineString } from "@turf/helpers";
@@ -375,8 +375,12 @@ function App() {
   };
 
   useEffect(() => {
+    map?.invalidateSize()
+  }, [menuMinimized])
+
+  useEffect(() => {
     loadRegionShape();
-  }, [])
+  }, []);
 
   useEffect(() => {
     if (map) {
@@ -387,6 +391,14 @@ function App() {
       }
     }
   }, [map, showMunichways]);
+
+  useEffect(() => {
+    if (map) {
+      L.control.zoom({
+        position: 'topright'
+      }).addTo(map);
+    }
+  }, [map]);
 
   const autocompleteStart = useCallback(
     debounce((value: string) => {
@@ -797,7 +809,7 @@ function App() {
 
   return (
     <ThemeProvider theme={RADLNAVI_THEME}>
-      <div className="App" onResize={() => {
+      <div className="App" style={{ display: 'flex' }} onResize={() => {
         if (map != null) {
           map.invalidateSize();
         }
@@ -868,7 +880,7 @@ function App() {
             {illuminatedElement}
           </div> : null}
 
-        <SwipeableDrawer sx={{ ".MuiDrawer-paper": { overflow: "visible" } }} variant="persistent" anchor="left" open={!menuMinimized} onClose={() => setMenuMinimized(true)} onOpen={() => setMenuMinimized(false)}>
+        <Drawer sx={{ ".MuiDrawer-paper": { overflow: "visible" }, width: menuMinimized ? 0 : 360, flexShrink: 0 }} variant="persistent" anchor="left" open={!menuMinimized} onClose={() => setMenuMinimized(true)} onOpen={() => setMenuMinimized(false)}>
 
           <img src="logo.svg" width="320" height="80" alt="RadlNavi Logo" style={{ margin: "10px auto" }}></img>
           <div style={{ margin: "-7px 5px 7px 5px", display: "flex", alignItems: "center", flexDirection: "column" }}>
@@ -1010,7 +1022,7 @@ function App() {
               <Link style={{ cursor: "pointer", fontWeight: 'bold' }} onClick={() => window.open(`https://github.com/MunichWays/radlnavi/releases/tag/${process.env.REACT_APP_VERSION || "v1"}`, "_blank")}>Das ist neu in RadlNavi {process.env.REACT_APP_VERSION || "v1"}</Link>
             </div>
           </div>
-        </SwipeableDrawer>
+        </Drawer>
 
         {isNavigating && nextNavigationStep && nextNavigationStep ? <div style={{
           position: "absolute",
@@ -1052,6 +1064,12 @@ function App() {
           zoomControl={false}
           maxBounds={MAP_BOUNDS}
           ref={setMap}
+          style={{
+            marginLeft: 360,
+            ...(!menuMinimized && {
+              marginLeft: 0,
+            })
+          }}
         >
           <TileLayer
             attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
