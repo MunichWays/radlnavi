@@ -472,6 +472,10 @@ function App() {
           ).geometry?.coordinates?.map(coord => ({ lat: coord[1], lng: coord[0] })),
         });
       }
+    } else {
+      setSnappedUserPosition(null);
+      setLineToRoute(null);
+      setNextNavigationStep(null);
     }
   }, [userPosition, route, isNavigating, routeMetadata])
 
