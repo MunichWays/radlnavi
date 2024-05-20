@@ -12,8 +12,8 @@ import {
 } from "react-leaflet";
 import { LatLngBounds, LeafletEvent, LeafletMouseEvent, Map as LMap, Icon as LeafletIcon } from "leaflet";
 import { throttle } from "lodash";
-import { TextField, IconButton, LinearProgress, Button, createTheme, ThemeProvider, Autocomplete, Tooltip, Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link, Typography, Drawer, Fab } from "@mui/material";
-import { CenterFocusWeak, Directions, Download, FitScreen, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
+import { ToggleButtonGroup, ToggleButton, TextField, IconButton, LinearProgress, Button, createTheme, ThemeProvider, Autocomplete, Tooltip, Switch, FormControlLabel, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Link, Typography, Drawer, Fab } from "@mui/material";
+import { CenterFocusWeak, Directions, Download, FitScreen, GpsFixed, GpsNotFixed, GpsOff, LocationSearching, MenuOpen, PlayArrow, SwapVert } from "@mui/icons-material";
 import lineSlice from "@turf/line-slice";
 import { point, lineString } from "@turf/helpers";
 import length from "@turf/length";
@@ -330,6 +330,7 @@ function App() {
   const [nextNavigationStep, setNextNavigationStep] = useState<NavigationStep>(null);
   const [lineToRoute, setLineToRoute] = useState<LineGeo | null>(null);
   const [regionShape, setRegionShape] = useState<Polygon | null>(null);
+  const [gpsMode, setGpsMode] = useState<"gps_off" | "gps_not_fixed" | "gps_fixed">("gps_off");
 
   const loadRegionShape = async () => {
     const regionGeoJson = await fetch("/region.json");
@@ -418,8 +419,14 @@ function App() {
   useEffect(() => autocompleteEnd(endValue), [endValue]);
 
   useEffect(() => {
+    if (map && gpsMode === "gps_fixed" && userPosition) {
+      const zoom = isNavigating ? 20 - Math.min(5, (userPosition.speed || 0) / 2) : undefined;
+      map?.setView({ lat: userPosition.lat, lng: userPosition.lng }, zoom, { animate: true, duration: 1 });
+    }
+  }, [map, gpsMode, isNavigating, userPosition]);
+
+  useEffect(() => {
     if (isNavigating && route && userPosition && routeMetadata) {
-      map?.setView({ lat: userPosition.lat, lng: userPosition.lng }, 20 - Math.min(5, (userPosition.speed || 0) / 2), { animate: true, duration: 1 });
       const line = lineString(route.geometry.coordinates);
       const navigationRoute = lineSlice(point([userPosition.lng, userPosition.lat]), point(route.geometry.coordinates[route.geometry.coordinates.length - 1]), line);
       setNavigationPath(navigationRoute.geometry.coordinates.map((pos) => ({ lat: pos[1], lng: pos[0] })));
@@ -545,20 +552,16 @@ function App() {
     setContextMenuPosition(null);
   }, []);
 
-  const toggleMenu = useCallback(() => {
-    setMenuMinimized(!menuMinimized);
-  }, [menuMinimized]);
-
   const startNavigation = useCallback(() => {
     setMenuMinimized(true);
     setIsNavigating(true);
+    setGpsMode("gps_fixed");
   }, [])
 
   useEffect(() => {
     if ("geolocation" in navigator) {
-      if (isNavigating) {
+      if (gpsMode === "gps_fixed" || gpsMode === "gps_not_fixed") {
         if (geolocationWathId == null) {
-          map?.setView({ lat: route.geometry.coordinates[0][1], lng: route.geometry.coordinates[0][0] }, 20, { animate: true });
           const watchId = navigator.geolocation.watchPosition((position) => {
             setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: position.coords.heading });
           }, (error) => {
@@ -576,7 +579,9 @@ function App() {
         }
       }
     }
+  }, [gpsMode, geolocationWathId, route]);
 
+  useEffect(() => {
     if ("wakeLock" in navigator) {
       if (isNavigating) {
         navigator.wakeLock.request().then(value => setWakeLock(value))
@@ -584,7 +589,7 @@ function App() {
         wakeLock?.release().then(() => setWakeLock(null));
       }
     }
-  }, [isNavigating, geolocationWathId, route])
+  }, [isNavigating, wakeLock]);
 
   const routeFromHere = useCallback(
     (position: { lat: number; lng: number }) => {
@@ -1024,6 +1029,27 @@ function App() {
           </div>
         </Drawer>
 
+        <div style={{
+          position: "absolute",
+          right: 60,
+          top: 10,
+          zIndex: 1000,
+          background: "white",
+        }}>
+          <ToggleButtonGroup
+            color="primary"
+            value={gpsMode}
+            exclusive
+            onChange={(e, newGpsMode) => {
+              setGpsMode(newGpsMode);
+          }}
+          >
+            <ToggleButton size="small" value="gps_off"><Tooltip title="Kein GPS auf Karte anzeigen"><GpsOff /></Tooltip></ToggleButton>
+            <ToggleButton size="small" value="gps_not_fixed"><Tooltip title="GPS auf Karte anzeigen"><GpsNotFixed /></Tooltip></ToggleButton>
+            <ToggleButton size="small" value="gps_fixed"><Tooltip title="GPS auf Karte anzeigen und verfolgen"><GpsFixed /></Tooltip></ToggleButton>
+          </ToggleButtonGroup>
+        </div>
+
         {isNavigating && nextNavigationStep && nextNavigationStep ? <div style={{
           position: "absolute",
           left: 10,
@@ -1105,7 +1131,7 @@ function App() {
               <Popup>{endPosition.display_name}</Popup>
             </Marker>
           ) : null}
-          {userPosition != null && route != null ? (
+          {userPosition != null && gpsMode !== "gps_off" ? (
             <RotatedMarker
               icon={userMarkerIcon}
               draggable={false}
