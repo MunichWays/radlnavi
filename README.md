@@ -2,7 +2,7 @@
 
 This project has the code basis for frontend and backend of radlnavi.de. A webpage for regional bike navigation in and around Munich. The routing algorithm takes into account the `class:bicycle` information given by OpenStreetMap and navigates preferably via good rated route segments.
 
-Routing is done via the [backend service](./backend/) and uses the rules and speeds given in the [bike.lua](./backend/bike.lua) file.
+Routing is done via the [backend service](./backend/) and uses the rules and speeds given in the [bike.lua](./routing/bike.lua) file.
 
 The [frontend service](./frontend/) interacts with the user and also features an overlay of the different route segments that have been annotated with `class:bicycle`. Therefor, the script [load_munichways.mjs](./frontend/load_munichways.mjs) needs to be executed, while development or eventually, when a new version of the frontend is build via docker.
 
