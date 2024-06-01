@@ -14,7 +14,7 @@ COPY package.json package.json
 COPY package-lock.json package-lock.json
 COPY tsconfig.json tsconfig.json
 
-RUN npm install --verbose
+RUN npm install --verbose --force
 
 # build class:bicycle map overlay
 RUN wget "https://download.geofabrik.de/${REGION}-latest.osm.pbf" -O ./map.osm.pbf

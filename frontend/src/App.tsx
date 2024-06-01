@@ -419,6 +419,12 @@ function App() {
   useEffect(() => autocompleteEnd(endValue), [endValue]);
 
   useEffect(() => {
+    if (map && gpsMode === "gps_fixed") {
+      map.setBearing(userPosition?.heading);
+    }
+  }, [gpsMode, userPosition, map])
+
+  useEffect(() => {
     if (map && gpsMode === "gps_fixed" && userPosition) {
       const zoom = isNavigating ? 20 - Math.min(5, (userPosition.speed || 0) / 2) : undefined;
       map?.setView({ lat: userPosition.lat, lng: userPosition.lng }, zoom, { animate: true, duration: 1 });
@@ -810,11 +816,16 @@ function App() {
     setIsNavigating(false);
   }, []);
 
-  document.onresize = () => {
+  useEffect(() => {
     if (map != null) {
-      map.invalidateSize();
+      console.log("rotate!", map);
+      // map.options.rotate = true;
+      // map.setBearing(Math.random() * 359);
+      window.document.onresize = () => {
+        map.invalidateSize();
+      }
     }
-  }
+  }, [map]);
 
   return (
     <ThemeProvider theme={RADLNAVI_THEME}>
@@ -1094,6 +1105,7 @@ function App() {
           zoomControl={false}
           maxBounds={MAP_BOUNDS}
           ref={setMap}
+          rotate={true}
           style={{
             marginLeft: 360,
             ...(!menuMinimized && {
