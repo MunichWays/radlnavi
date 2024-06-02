@@ -420,7 +420,9 @@ function App() {
 
   useEffect(() => {
     if (map && gpsMode === "gps_fixed") {
-      map.setBearing(userPosition?.heading);
+      map.setBearing(270 - userPosition?.heading);
+    } else {
+      map.setBearing(0);
     }
   }, [gpsMode, userPosition, map])
 
@@ -573,7 +575,7 @@ function App() {
       if (gpsMode === "gps_fixed" || gpsMode === "gps_not_fixed") {
         if (geolocationWathId == null) {
           const watchId = navigator.geolocation.watchPosition((position) => {
-            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: position.coords.heading });
+            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: 90 });
           }, (error) => {
             console.error(error);
           }, {
@@ -1147,18 +1149,25 @@ function App() {
               <Popup>{endPosition.display_name}</Popup>
             </Marker>
           ) : null}
-          {userPosition != null && gpsMode !== "gps_off" ? (
-            <RotatedMarker
-              icon={userMarkerIcon}
-              draggable={false}
-              position={[
-                snappedUserPosition?.lat || userPosition.lat,
-                snappedUserPosition?.lng || userPosition.lng,
-              ]}
-              rotationAngle={userPosition.heading || 0}
-              rotationOrigin={"center center"}
-            ></RotatedMarker>
-          ) : null}
+          {userPosition != null && gpsMode === "gps_fixed" ? (
+            <Marker
+            icon={userMarkerIcon}
+            draggable={false}
+            position={[
+              snappedUserPosition?.lat || userPosition.lat,
+              snappedUserPosition?.lng || userPosition.lng,
+            ]}
+          ></Marker>
+          ) : gpsMode === "gps_not_fixed" ? <RotatedMarker
+          icon={userMarkerIcon}
+          draggable={false}
+          position={[
+            snappedUserPosition?.lat || userPosition.lat,
+            snappedUserPosition?.lng || userPosition.lng,
+          ]}
+          rotationAngle={gpsMode === "gps_fixed" ? 0 : userPosition.heading || 0}
+          rotationOrigin={"center center"}
+        ></RotatedMarker> : null}
           {route != null && startPosition != null && endPosition != null
             ? drawRoute(route)
             : null}
