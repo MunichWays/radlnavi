@@ -421,7 +421,7 @@ function App() {
   useEffect(() => {
     if (map) {
       if (gpsMode === "gps_fixed") {
-        map.setBearing(userPosition?.heading);
+        map.setBearing(-userPosition?.heading);
       } else {
         map.setBearing(0);
       }
@@ -570,16 +570,14 @@ function App() {
     setMenuMinimized(true);
     setIsNavigating(true);
     setGpsMode("gps_fixed");
-  }, [])
+  }, []);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
       if (gpsMode === "gps_fixed" || gpsMode === "gps_not_fixed") {
         if (geolocationWathId == null) {
           const watchId = navigator.geolocation.watchPosition((position) => {
-            const heading = position.coords.heading + Math.random() * 360;
-            console.log("heading:", heading);
-            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading });
+            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: position.coords.heading });
           }, (error) => {
             console.error(error);
           }, {
@@ -1162,14 +1160,14 @@ function App() {
               snappedUserPosition?.lng || userPosition.lng,
             ]}
           ></Marker>
-          ) : gpsMode === "gps_not_fixed" ? <RotatedMarker
+          ) : userPosition != null && gpsMode === "gps_not_fixed" ? <RotatedMarker
           icon={userMarkerIcon}
           draggable={false}
           position={[
             snappedUserPosition?.lat || userPosition.lat,
             snappedUserPosition?.lng || userPosition.lng,
           ]}
-          rotationAngle={gpsMode === "gps_fixed" ? 0 : userPosition.heading || 0}
+          rotationAngle={userPosition.heading || 0}
           rotationOrigin={"center center"}
         ></RotatedMarker> : null}
           {route != null && startPosition != null && endPosition != null
