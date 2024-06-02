@@ -419,10 +419,12 @@ function App() {
   useEffect(() => autocompleteEnd(endValue), [endValue]);
 
   useEffect(() => {
-    if (map && gpsMode === "gps_fixed") {
-      map.setBearing(270 - userPosition?.heading);
-    } else {
-      map.setBearing(0);
+    if (map) {
+      if (gpsMode === "gps_fixed") {
+        map.setBearing(userPosition?.heading);
+      } else {
+        map.setBearing(0);
+      }
     }
   }, [gpsMode, userPosition, map])
 
@@ -575,7 +577,9 @@ function App() {
       if (gpsMode === "gps_fixed" || gpsMode === "gps_not_fixed") {
         if (geolocationWathId == null) {
           const watchId = navigator.geolocation.watchPosition((position) => {
-            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: 90 });
+            const heading = position.coords.heading + Math.random() * 360;
+            console.log("heading:", heading);
+            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading });
           }, (error) => {
             console.error(error);
           }, {
