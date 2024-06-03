@@ -600,7 +600,7 @@ function App() {
       if (gpsMode === "gps_fixed" || gpsMode === "gps_not_fixed") {
         if (geolocationWathId == null) {
           const watchId = navigator.geolocation.watchPosition((position) => {
-            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: 90 });
+            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: position.coords.heading });
           }, (error) => {
             console.error(error);
           }, {
