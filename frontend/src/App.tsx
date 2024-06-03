@@ -270,6 +270,8 @@ L.DomEvent.fakeStop = function () {
   return true;
 }
 
+let posChangeInterval = null;
+
 const munichWaysLayer = L.vectorGrid.protobuf("/layers/munichways/{z}/{x}/{y}.pbf", {
   vectorTileLayerStyles: {
     munichways: (prop) => ({ color: prop.color })
@@ -421,17 +423,38 @@ function App() {
   useEffect(() => {
     if (map) {
       if (gpsMode === "gps_fixed") {
-        map.setBearing(-userPosition?.heading);
+        posChangeInterval = setInterval(() => {
+          const headingDelta = Math.abs(map.getBearing() - -userPosition?.heading);
+          const headingStep = headingDelta / 10;
+          if (headingDelta > 1) {
+            if (-userPosition?.heading > map.getBearing()) {
+              map.setBearing(map.getBearing() + headingStep);
+            } else {
+              map.setBearing(map.getBearing() - headingStep);
+            }
+          }
+
+          const latDelta = map.getCenter().lat - userPosition?.lat;
+          const lngDelta = map.getCenter().lng - userPosition?.lng;
+          const latStep = latDelta / 10;
+          const lngStep = lngDelta / 10;
+          console.log(latDelta);
+          if (Math.abs(latDelta) > 0.0001 || Math.abs(lngDelta) > 0.0001) {
+            map.setView({lat: map.getCenter().lat - latStep, lng: map.getCenter().lng - lngStep});
+          }
+        }, 50);
       } else {
+        clearInterval(posChangeInterval);
+        posChangeInterval = null;
         map.setBearing(0);
       }
     }
+    return () => clearInterval(posChangeInterval);
   }, [gpsMode, userPosition, map])
 
   useEffect(() => {
-    if (map && gpsMode === "gps_fixed" && userPosition) {
-      const zoom = isNavigating ? 20 - Math.min(5, (userPosition.speed || 0) / 2) : undefined;
-      map?.setView({ lat: userPosition.lat, lng: userPosition.lng }, zoom, { animate: true, duration: 1 });
+    if (map && gpsMode === "gps_fixed" && userPosition && isNavigating) {
+      map.setZoom(20 - Math.min(5, (userPosition.speed || 0) / 2));
     }
   }, [map, gpsMode, isNavigating, userPosition]);
 
@@ -577,7 +600,7 @@ function App() {
       if (gpsMode === "gps_fixed" || gpsMode === "gps_not_fixed") {
         if (geolocationWathId == null) {
           const watchId = navigator.geolocation.watchPosition((position) => {
-            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: position.coords.heading });
+            setUserPosition({ lat: position.coords.latitude, lng: position.coords.longitude, speed: position.coords.speed, heading: 90 });
           }, (error) => {
             console.error(error);
           }, {
@@ -822,9 +845,6 @@ function App() {
 
   useEffect(() => {
     if (map != null) {
-      console.log("rotate!", map);
-      // map.options.rotate = true;
-      // map.setBearing(Math.random() * 359);
       window.document.onresize = () => {
         map.invalidateSize();
       }
@@ -1200,7 +1220,7 @@ function App() {
           color="warning"
           style={{
             position: "fixed",
-            top: 20,
+            top: "20vh",
             left: "50%",
             transform: "translateX(-50%)"
           }} onClick={() => routeFromHere(lineToRoute[0])}>Route neu berechnen</Button>
