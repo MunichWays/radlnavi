@@ -424,14 +424,13 @@ function App() {
     if (map) {
       if (gpsMode === "gps_fixed") {
         posChangeInterval = setInterval(() => {
-          const headingDelta = Math.abs(map.getBearing() - -userPosition?.heading);
+          const targetHeading = 360 - userPosition?.heading;
+          const currentHeading = map.getBearing();
+          const headingDiff = ( targetHeading - currentHeading + 180 ) % 360 - 180;
+          const headingDelta = headingDiff < -180 ? headingDiff + 360 : headingDiff;
           const headingStep = headingDelta / 10;
-          if (headingDelta > 1) {
-            if (-userPosition?.heading > map.getBearing()) {
-              map.setBearing(map.getBearing() + headingStep);
-            } else {
-              map.setBearing(map.getBearing() - headingStep);
-            }
+          if (Math.abs(headingDelta) > 1) {
+            map.setBearing((map.getBearing() + headingStep) % 360);
           }
 
           const latDelta = map.getCenter().lat - userPosition?.lat;
