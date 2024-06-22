@@ -923,90 +923,95 @@ function App() {
             {illuminatedElement}
           </div> : null}
 
-        <Drawer sx={{ ".MuiDrawer-paper": { overflow: "visible" }, width: menuMinimized ? 0 : 360, flexShrink: 0 }} variant="persistent" anchor="left" open={!menuMinimized} onClose={() => setMenuMinimized(true)} onOpen={() => setMenuMinimized(false)}>
+        <Drawer sx={{".MuiDrawer-paper": {overflow: "visible"}, width: menuMinimized ? 0 : 360, flexShrink: 0}}
+                variant="persistent" anchor="left" open={!menuMinimized} onClose={() => setMenuMinimized(true)}
+                onOpen={() => setMenuMinimized(false)}>
 
-          <img src="logo.svg" width="320" height="80" alt="RadlNavi Logo" style={{ margin: "10px auto" }}></img>
-          <div style={{ margin: "-7px 5px 7px 5px", display: "flex", alignItems: "center", flexDirection: "column" }}>
-            <Typography style={{ fontSize: "0.7rem" }}>Sichere Fahrradnavigation für München und Umgebung</Typography>
-            <Link style={{ fontSize: "0.7rem", cursor: "pointer" }} onClick={() => setShowAbout(true)}>Wie macht RadlNavi meine Fahrradfahrt sicherer?</Link>
+          <img src="logo.svg" width="320" height="80" alt="RadlNavi Logo" style={{margin: "10px auto"}}></img>
+          <img src="logo-munichways.svg" width="320" height="80" alt="MunichWays Logo" style={{margin: "10px auto"}}></img>
+          <div style={{margin: "-7px 5px 7px 5px", display: "flex", alignItems: "center", flexDirection: "column"}}>
+            <Typography style={{fontSize: "0.7rem"}}>Fahrradnavigation für München und Umgebung</Typography>
+            <Link style={{fontSize: "0.7rem", cursor: "pointer"}} onClick={() => setShowAbout(true)}>Wie macht RadlNavi
+              meine Fahrradfahrt entspannter?</Link>
           </div>
-          <div className="routing" style={{ flex: 1, overflowY: 'auto' }}>
-            <div style={{ display: 'flex', marginTop: 20 }}>
+          <div className="routing" style={{flex: 1, overflowY: 'auto'}}>
+            <div style={{display: 'flex', marginTop: 20}}>
               <Autocomplete
-                id="start"
-                filterOptions={(x) => x}
-                value={startPosition}
-                onInputChange={(_props, newValue: string, _reason) => {
-                  console.log("set value", newValue);
-                  setStartValue(newValue);
-                }}
-                clearOnBlur={false}
-                onChange={(e, newValue) => {
-                  console.log("selected", newValue);
-                  setStartPosition(newValue);
-                  if (newValue == null) {
-                    setRoute(null);
-                    setRouteMetadata(null);
+                  id="start"
+                  filterOptions={(x) => x}
+                  value={startPosition}
+                  onInputChange={(_props, newValue: string, _reason) => {
+                    console.log("set value", newValue);
+                    setStartValue(newValue);
+                  }}
+                  clearOnBlur={false}
+                  onChange={(e, newValue) => {
+                    console.log("selected", newValue);
+                    setStartPosition(newValue);
+                    if (newValue == null) {
+                      setRoute(null);
+                      setRouteMetadata(null);
+                    }
+                  }}
+                  options={startSuggestions}
+                  getOptionLabel={(option: NominatimItem | null) =>
+                      !option ? "" : option.display_name
                   }
-                }}
-                options={startSuggestions}
-                getOptionLabel={(option: NominatimItem | null) =>
-                  !option ? "" : option.display_name
-                }
-                style={{ width: 300 }}
-                noOptionsText={"Für Vorschläge Adresse eingeben ..."}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Startposition"
-                    variant="outlined"
-                    fullWidth
-                  />
-                )}
+                  style={{width: 300}}
+                  noOptionsText={"Für Vorschläge Adresse eingeben ..."}
+                  renderInput={(params) => (
+                      <TextField
+                          {...params}
+                          label="Startposition"
+                          variant="outlined"
+                          fullWidth
+                      />
+                  )}
               />
               <Tooltip title="Aktuelle Position ermitteln und als Start setzen" arrow>
-                <IconButton color="primary" onClick={() => navigator.geolocation.getCurrentPosition((loc) => setStartPosition({
-                  display_name: "Ermittelter Standort",
-                  place_id: 1,
-                  lat: loc.coords.latitude + "",
-                  lon: loc.coords.longitude + "",
-                }))}><LocationSearching /></IconButton>
+                <IconButton color="primary"
+                            onClick={() => navigator.geolocation.getCurrentPosition((loc) => setStartPosition({
+                              display_name: "Ermittelter Standort",
+                              place_id: 1,
+                              lat: loc.coords.latitude + "",
+                              lon: loc.coords.longitude + "",
+                            }))}><LocationSearching/></IconButton>
               </Tooltip>
             </div>
             <div style={{
               display: 'flex',
             }}>
               <Autocomplete
-                id="end"
-                filterOptions={(x) => x}
-                value={endPosition}
-                clearOnBlur={false}
-                onInputChange={(_props, newValue: string, _reason) => {
-                  console.log("set value", newValue);
-                  setEndValue(newValue);
-                }}
-                onChange={(e, newValue) => {
-                  console.log("selected", newValue);
-                  setEndPosition(newValue);
-                  if (newValue == null) {
-                    setRoute(null);
-                    setRouteMetadata(null);
+                  id="end"
+                  filterOptions={(x) => x}
+                  value={endPosition}
+                  clearOnBlur={false}
+                  onInputChange={(_props, newValue: string, _reason) => {
+                    console.log("set value", newValue);
+                    setEndValue(newValue);
+                  }}
+                  onChange={(e, newValue) => {
+                    console.log("selected", newValue);
+                    setEndPosition(newValue);
+                    if (newValue == null) {
+                      setRoute(null);
+                      setRouteMetadata(null);
+                    }
+                  }}
+                  options={endSuggestions}
+                  getOptionLabel={(option: NominatimItem | null) =>
+                      !option ? "" : option.display_name
                   }
-                }}
-                options={endSuggestions}
-                getOptionLabel={(option: NominatimItem | null) =>
-                  !option ? "" : option.display_name
-                }
-                style={{ width: 300 }}
-                noOptionsText={"Für Vorschläge Adresse eingeben ..."}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Ziel"
-                    variant="outlined"
-                    fullWidth
-                  />
-                )}
+                  style={{width: 300}}
+                  noOptionsText={"Für Vorschläge Adresse eingeben ..."}
+                  renderInput={(params) => (
+                      <TextField
+                          {...params}
+                          label="Ziel"
+                          variant="outlined"
+                          fullWidth
+                      />
+                  )}
               />
               <Tooltip title="Route umkehren" placement="top" arrow>
                 <IconButton disabled={startPosition == null || endPosition == null} color="primary" onClick={() => {
@@ -1018,51 +1023,57 @@ function App() {
             </div>
             {routeMetaElement}
             {route && map ? <Button
-              variant="contained"
-              color="primary"
-              style={{ margin: "0 10px" }}
-              startIcon={<CenterFocusWeak />}
-              onClick={() => {
-                setMenuMinimized(true);
-                map.fitBounds(new LatLngBounds(route.geometry.coordinates.map((c: any) => {
-                  return [c[1], c[0]];
-                })));
-              }}>Route anzeigen</Button> : null}
-            {route != null ?
-              <Button
-                style={{ margin: "10px 10px 0 10px" }}
                 variant="contained"
                 color="primary"
-                onClick={() => startNavigation()}
-                disabled={route == null}
-                startIcon={<PlayArrow />}
-              >
-                Navigation starten
-              </Button>
-              : null}
-            {startPosition != null && endPosition != null && (surfacesElement == null || illuminatedElement == null || routeMetaElement == null) ? <LinearProgress sx={{ height: 10, borderRadius: 4, margin: "10px" }} /> : null}
+                style={{margin: "0 10px"}}
+                startIcon={<CenterFocusWeak/>}
+                onClick={() => {
+                  setMenuMinimized(true);
+                  map.fitBounds(new LatLngBounds(route.geometry.coordinates.map((c: any) => {
+                    return [c[1], c[0]];
+                  })));
+                }}>Route anzeigen</Button> : null}
+            {route != null ?
+                <Button
+                    style={{margin: "10px 10px 0 10px"}}
+                    variant="contained"
+                    color="primary"
+                    onClick={() => startNavigation()}
+                    disabled={route == null}
+                    startIcon={<PlayArrow/>}
+                >
+                  Navigation starten
+                </Button>
+                : null}
+            {startPosition != null && endPosition != null && (surfacesElement == null || illuminatedElement == null || routeMetaElement == null) ?
+                <LinearProgress sx={{height: 10, borderRadius: 4, margin: "10px"}}/> : null}
             {surfacesElement}
             {illuminatedElement}
             {route != null ?
-              <Button
-                style={{ margin: "0 10px" }}
-                variant="outlined"
-                color="primary"
-                onClick={() => exportGpx()}
-                disabled={route == null}
-                startIcon={<Download />}
-              >
-                GPX herunterladen
-              </Button>
-              : null}
-            <div style={{ flexGrow: 1 }}></div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 5 }}>
-              <FormControlLabel control={<Switch value={showMunichways} onChange={(_, checked) => setShowMunichways(checked)} />} label="MunichWays Bewertungen" />
+                <Button
+                    style={{margin: "0 10px"}}
+                    variant="outlined"
+                    color="primary"
+                    onClick={() => exportGpx()}
+                    disabled={route == null}
+                    startIcon={<Download/>}
+                >
+                  GPX herunterladen
+                </Button>
+                : null}
+            <div style={{flexGrow: 1}}></div>
+            <div style={{display: 'flex', justifyContent: 'center', marginBottom: 5}}>
+              <FormControlLabel
+                  control={<Switch value={showMunichways} onChange={(_, checked) => setShowMunichways(checked)}/>}
+                  label="MunichWays Bewertungen"/>
             </div>
-            <div style={{ fontSize: '0.75rem', margin: "0 auto 15px auto", textAlign: 'center' }}>
-              <Link style={{ cursor: "pointer" }} onClick={() => setShowImpressum(true)}>Impressum und Datenschutzerklärung</Link><br />
-              <div style={{ padding: 2 }}></div>
-              <Link style={{ cursor: "pointer", fontWeight: 'bold' }} onClick={() => window.open(`https://github.com/MunichWays/radlnavi/releases/tag/${process.env.REACT_APP_VERSION || "v1"}`, "_blank")}>Das ist neu in RadlNavi {process.env.REACT_APP_VERSION || "v1"}</Link>
+            <div style={{fontSize: '0.75rem', margin: "0 auto 15px auto", textAlign: 'center'}}>
+              <Link style={{cursor: "pointer"}} onClick={() => setShowImpressum(true)}>Impressum und
+                Datenschutzerklärung</Link><br/>
+              <div style={{padding: 2}}></div>
+              <Link style={{cursor: "pointer", fontWeight: 'bold'}}
+                    onClick={() => window.open(`https://github.com/MunichWays/radlnavi/releases/tag/${process.env.REACT_APP_VERSION || "v1"}`, "_blank")}>Das
+                ist neu in RadlNavi {process.env.REACT_APP_VERSION || "v1"}</Link>
             </div>
           </div>
         </Drawer>
