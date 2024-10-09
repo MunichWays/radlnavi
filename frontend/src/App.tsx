@@ -483,17 +483,24 @@ function App() {
 
       let upcomingStep = null;
       let travelled = distanceTravelled;
-      for (const step of route.steps) {
+      let durationRemaining = 0;
+      for (const index in route.steps) {
         if (travelled < 0) {
-          upcomingStep = step;
+          upcomingStep = route.steps[index];
+          for (let i = index; i < route.steps.length; i++) {
+            durationRemaining += route.steps[i].duration;
+          }
           break;
         }
-        travelled -= step.distance;
+        travelled -= route.steps[index].distance;
       }
+
       if (upcomingStep != null) {
         const nextStepDistanceFromStart = distanceTravelled + Math.abs(travelled);
         setNextNavigationStep({
           distance: Math.abs(travelled),
+          remainingDistance: distanceToTravel,
+          remainingDuration: durationRemaining,
           maneuver: upcomingStep?.maneuver,
           description: textInstructions("v5").compile("de", upcomingStep),
           geometry: lineSliceAlong(
@@ -1098,23 +1105,32 @@ function App() {
           padding: 10,
           borderRadius: 10,
           display: "flex",
-          justifyContent: "space-between",
+          flexDirection: "column",
           alignItems: "stretch",
         }}>
+          {nextNavigationStep.maneuver.type != "arrive" ? <div style={{ textAlign: "right" }}>
+            Ankunft in etwa {Math.floor(nextNavigationStep.remainingDuration / 60)} min ({Math.round(nextNavigationStep.remainingDistance / 1000, 1)} km) um <b>{new Date(Date.now() + 1000 * nextNavigationStep.remainingDuration).toLocaleTimeString().slice(0, -3)} Uhr</b>
+          </div> : null}
 
-          {nextNavigationStep.maneuver.type != "arrive" && nextNavigationStep.maneuver?.modifier == null ? <div style={{ flexGrow: 1 }}></div> :
-            <div style={{
-              backgroundImage: `url(./${nextNavigationStep.maneuver?.type == "arrive" ? "arrive" : "maneuver_" + nextNavigationStep.maneuver.modifier.replaceAll(" ", "_")}.svg)`,
-              backgroundRepeat: "no-repeat",
-              flexGrow: 1,
-              minWidth: 70,
-              backgroundPositionY: "center",
-            }}>
-            </div>}
+          <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "stretch",
+          }}>
+            {nextNavigationStep.maneuver.type != "arrive" && nextNavigationStep.maneuver?.modifier == null ? <div style={{ flexGrow: 1 }}></div> :
+              <div style={{
+                backgroundImage: `url(./${nextNavigationStep.maneuver?.type == "arrive" ? "arrive" : "maneuver_" + nextNavigationStep.maneuver.modifier.replaceAll(" ", "_")}.svg)`,
+                backgroundRepeat: "no-repeat",
+                flexGrow: 1,
+                minWidth: 70,
+                backgroundPositionY: "center",
+              }}>
+              </div>}
 
-          <div style={{ textAlign: "left", flexGrow: 1 }}>
-            <span style={{ fontSize: "2rem" }}>{Math.round(nextNavigationStep.distance / 10) * 10}m</span><br />
-            <i>{nextNavigationStep.description}</i>
+            <div style={{ textAlign: "left", flexGrow: 1 }}>
+              <span style={{ fontSize: "2rem" }}>{Math.round(nextNavigationStep.distance / 10) * 10}m</span><br />
+              <i>{nextNavigationStep.description}</i>
+            </div>
           </div>
         </div> : null}
 
