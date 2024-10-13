@@ -487,6 +487,8 @@ function App() {
       for (const index in route.steps) {
         if (travelled < 0) {
           upcomingStep = route.steps[index];
+          const lastIndex = index >= 1 ? index - 1 : 0;
+          durationRemaining = (Math.abs(travelled) / route.steps[lastIndex].distance) * route.steps[lastIndex].duration;
           for (let i = index; i < route.steps.length; i++) {
             durationRemaining += route.steps[i].duration;
           }
