@@ -1095,22 +1095,7 @@ function App() {
           </ToggleButtonGroup>
         </div>
 
-        {isNavigating && nextNavigationStep && nextNavigationStep.maneuver.type != "arrive" ? <div style={{
-          position: "absolute",
-          top: 25,
-          zIndex: 1000,
-          background: "#000",
-          padding: 10,
-          borderRadius: 10,
-          left: "50vw",
-          color: "white",
-          textAlign: "center",
-          transform: "translateX(-50%)"
-        }}>
-            Ankunft in etwa {Math.ceil(nextNavigationStep.remainingDuration / 60)} min ({Math.round(nextNavigationStep.remainingDistance / 100) / 10} km) um <b>{new Date(Date.now() + 1000 * Math.ceil(nextNavigationStep.remainingDuration / 60) * 60).toLocaleTimeString().slice(0, -3)} Uhr</b>
-        </div> : null}
-
-        {isNavigating && nextNavigationStep && nextNavigationStep ? <div style={{
+        {isNavigating && nextNavigationStep ? <div style={{
           position: "absolute",
           left: 10,
           right: 10,
@@ -1123,6 +1108,23 @@ function App() {
           justifyContent: "space-between",
           alignItems: "stretch",
         }}>
+
+        {nextNavigationStep.maneuver.type != "arrive" ?
+          <div style={{
+            position: "absolute",
+            top: 10,
+            zIndex: 1100,
+            background: "#000",
+            padding: 10,
+            borderRadius: 10,
+            transform: "translate(-50%,-100%)",
+            width: "max-content",
+            left: "50%",
+            color: "white",
+            textAlign: "center",
+          }}>
+              Ankunft in <b>etwa {Math.ceil(nextNavigationStep.remainingDuration / 60)} min</b> ({Math.round(nextNavigationStep.remainingDistance / 100) / 10} km)
+          </div> : null}
       
           {nextNavigationStep.maneuver.type != "arrive" && nextNavigationStep.maneuver?.modifier == null ? <div style={{ flexGrow: 1 }}></div> :
             <div style={{
