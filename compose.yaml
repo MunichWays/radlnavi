@@ -4,7 +4,7 @@ services:
     build:
       context: ./frontend
       args:
-        - BACKEND_URL=backend
+        - BACKEND_URL=http://localhost:8000
     ports:
       - 80:80
 
@@ -18,9 +18,7 @@ services:
     image: radlnavi-backend
     build: ./backend
     environment:
-      - OSRM_BACKEND_URL=routing
-    volumes:
-      - ./backend/geo:/opt/app/geo
+      - OSRM_BACKEND_URL=http://routing:8080
     ports:
       - 8000:8000
     depends_on:

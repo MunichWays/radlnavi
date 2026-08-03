@@ -7,6 +7,7 @@ Sequence = require('lib/sequence')
 Handlers = require("lib/way_handlers")
 find_access_tag = require("lib/access").find_access_tag
 limit = require("lib/maxspeed").limit
+local conditional_access = require("conditional_access")
 
 function setup()
   local default_speed = 20
@@ -287,6 +288,17 @@ function handle_bicycle_tags(profile,way,result,data)
   (not data.public_transport or data.public_transport=='') and
   (not data.bridge or data.bridge=='')
   then
+    return false
+  end
+
+  data.bicycle_conditional = way:get_value_by_key("bicycle:conditional")
+  local conditionally_forbidden, condition_supported =
+    conditional_access.bicycle_is_forbidden(data.bicycle_conditional)
+  if data.bicycle_conditional and not condition_supported then
+    print("WARNING: unsupported bicycle:conditional on OSM way " ..
+      tostring(way:id()) .. ": " .. data.bicycle_conditional)
+  end
+  if conditionally_forbidden then
     return false
   end
 
@@ -635,6 +647,7 @@ function process_way(profile, way, result)
     foot_forward = nil,
     foot_backward = nil,
     bicycle = nil,
+    bicycle_conditional = nil,
 
     way_type_allows_pushing = false,
     has_cycleway_forward = false,
